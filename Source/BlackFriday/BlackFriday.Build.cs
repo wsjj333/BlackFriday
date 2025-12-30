@@ -8,6 +8,10 @@ public class BlackFriday : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
+			"BlackFriday",
+			"Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput"
+		});
 	}
 }

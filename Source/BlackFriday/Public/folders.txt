@@ -1,0 +1,3 @@
+C:\Users\kga\Documents\Unreal Projects\BlackFriday\Source\BlackFriday\Public\Character
+C:\Users\kga\Documents\Unreal Projects\BlackFriday\Source\BlackFriday\Public\Character\CartDriver
+C:\Users\kga\Documents\Unreal Projects\BlackFriday\Source\BlackFriday\Public\Character\Common
