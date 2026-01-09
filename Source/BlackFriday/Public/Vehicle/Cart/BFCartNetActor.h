@@ -30,6 +30,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BF|Network")
 	float TeleportThreshold;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BF|Physics")
+	float MaxSpeedLimit = 800.0f;
 
 protected:
 

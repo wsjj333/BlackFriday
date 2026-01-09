@@ -52,6 +52,15 @@ void ABFCartNetActor::Tick(float DeltaTime)
 
 	if (HasAuthority())
 	{
+		FVector CurrentVelocity = CartMesh->GetPhysicsLinearVelocity();
+		float CurrentSpeed = CurrentVelocity.Size();
+
+		if (CurrentSpeed > MaxSpeedLimit)
+		{
+			FVector ClampedVelocity = CurrentVelocity.GetSafeNormal() * MaxSpeedLimit;
+			CartMesh->SetPhysicsLinearVelocity(ClampedVelocity);
+		}
+		
 		ServerTransform = GetActorTransform();
 		return;
 	}
