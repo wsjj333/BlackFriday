@@ -11,7 +11,9 @@ public class BlackFriday : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			"BlackFriday",
-			"Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput"
+			"Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput",
+			"OnlineSubsystem", "OnlineSubsystemUtils"
 		});
+		DynamicallyLoadedModuleNames.Add("OnlineSubsystemNull");
 	}
 }
