@@ -59,7 +59,7 @@ void UBFSessionSubsystem::OnCreateSessionCompleteInternal(FName SessionName, boo
         if (World)
         {
             //맵 경로가 실제 파일 위치와 정확히
-            World->ServerTravel(TEXT("/Game/Colab/JSW/Maps/Maps_TestArrival?listen"));
+            World->ServerTravel(TEXT("/Game/Colab/JSW/Maps/Maps_Test1Arrival?listen"));
         }
     }
 
