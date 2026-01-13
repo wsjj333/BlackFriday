@@ -1,63 +1,72 @@
 #include "Vehicle/Cart/BFCartPawn.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
+#include "Character/CartDriver/BFCartDriverCharacter.h"
 
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 
+#include "Kismet/GameplayStatics.h"
+
 ABFCartPawn::ABFCartPawn()
 {
-    PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = true;
 
-    Capsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("Capsule"));
-    SetRootComponent(Capsule);
-    Capsule->InitCapsuleSize(55.f, 45.f);
-    Capsule->SetCollisionProfileName(TEXT("Pawn"));
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		AActor::StaticClass(),
+		FoundActors
+	);
 
-    CartMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CartMesh"));
-    CartMesh->SetupAttachment(Capsule);
-    CartMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-    CartMesh->SetCollisionProfileName(TEXT("PhysicsActor"));
-
-    Handle = CreateDefaultSubobject<USceneComponent>(TEXT("Handle"));
-    Handle->SetupAttachment(Capsule);
-
-    // 핸들 위치는 메시에 맞게 에디터에서 조정 권장
-    // (예: X=80~120, Z=50 등)
-    Handle->SetRelativeLocation(FVector(100.f, 0.f, 50.f));
-
-    CartMovement = CreateDefaultSubobject<UBFCartMovementComponent>(TEXT("CartMovement"));
-    CartMovement->SetUpdatedComponent(Capsule);
-
-    AutoPossessPlayer = EAutoReceiveInput::Disabled;
-}
-
-void ABFCartPawn::BeginPlay()
-{
-    Super::BeginPlay();
+	for (AActor* A : FoundActors)
+	{
+		// if (ABFCartDriverCharacter* Pusher = Cast<ABFCartDriverCharacter>(A))
+		// {
+		// 	CartDriver = Pusher;
+		// 	break;
+		// }
+	}
 }
 
 void ABFCartPawn::Tick(float DeltaSeconds)
 {
-    Super::Tick(DeltaSeconds);
+	Super::Tick(DeltaSeconds);
 }
 
-UPawnMovementComponent* ABFCartPawn::GetMovementComponent() const
+void ABFCartPawn::SuspensionCast(USceneComponent* WheelComp) const
 {
-    return CartMovement;
-}
-
-void ABFCartPawn::SetThrottle(float Value)
-{
-    if (CartMovement) CartMovement->SetThrottle(Value);
-}
-
-void ABFCartPawn::SetSteer(float Value)
-{
-    if (CartMovement) CartMovement->SetSteer(Value);
-}
-
-void ABFCartPawn::SetDriftHeld(bool bHeld)
-{
-    if (CartMovement) CartMovement->SetDriftHeld(bHeld);
+	FHitResult HitResult;
+	
+	FVector Start = WheelComp->GetComponentLocation();
+	FVector End = Start + WheelComp->GetUpVector() * -60.0f;
+	
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+	
+	DrawDebugLine(
+		GetWorld(),
+		Start,
+		End,
+		FColor::Red,
+		false,
+		5.0f,
+		0.1f,
+		1.0f
+		);
+	
+	bool bHit = GetWorld()->LineTraceSingleByChannel(
+		HitResult,
+		Start,
+		End,
+		ECC_Visibility,
+		QueryParams
+		);
+	
+	if (!bHit)
+	{
+		return;
+	}
+	
+	float HitResultDistance = HitResult.Distance;
 }
