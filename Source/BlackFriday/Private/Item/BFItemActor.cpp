@@ -1,6 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "Item/BFItemActor.h"
 #include "Net/UnrealNetwork.h"
 #include "Components/StaticMeshComponent.h"
@@ -15,21 +14,24 @@ ABFItemActor::ABFItemActor()
 
 	ItemMesh->SetSimulatePhysics(true);
 	ItemMesh->SetCollisionProfileName(TEXT("PhysicsActor"));
-
 	ItemMesh->BodyInstance.bUseCCD = true;
 
 	bReplicates = true;
-	NetUpdateFrequency = 100.0f;
+	
+	NetUpdateFrequency = 100.0f; 
 	MinNetUpdateFrequency = 30.0f;
 	NetPriority = 3.0f;
 	
-	SetReplicateMovement(true);
+	SetReplicateMovement(false);
 
-	MaxLinearVelocity = 2500.0f;  // 너무 빠르지 않게
+	MaxLinearVelocity = 2500.0f;
 	MaxAngularVelocity = 720.0f;
-	LinearDamping = 0.5f;   // 굴러다님 방지
-	AngularDamping = 1.0f;  // 팽이처럼 도는 것 방지
-	}
+	LinearDamping = 0.5f;   
+	AngularDamping = 1.0f;  
+
+	InterpSpeed = 15.0f;
+	TeleportThreshold = 500.0f;
+}
 
 void ABFItemActor::BeginPlay()
 {
@@ -40,28 +42,78 @@ void ABFItemActor::BeginPlay()
 		ItemMesh->SetLinearDamping(LinearDamping);
 		ItemMesh->SetAngularDamping(AngularDamping);
 	}
+
+	if (HasAuthority())
+	{
+		ServerTransform = GetActorTransform();
+	}
+	TargetTransform = GetActorTransform();
+}
+
+void ABFItemActor::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ABFItemActor, ServerTransform);
+}
+
+void ABFItemActor::OnRep_ServerTransform()
+{
+	float Dist = FVector::Dist(GetActorLocation(), ServerTransform.GetLocation());
+	
+	float MySpeed = GetVelocity().Size();
+	bool bIsMoving = MySpeed > 10.0f;
+
+	if (bIsMoving && Dist < 20.0f)
+	{
+		return;
+	}
+
+	TargetTransform = ServerTransform;
 }
 
 void ABFItemActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (HasAuthority() && ItemMesh && ItemMesh->IsSimulatingPhysics())
+	if (HasAuthority())
 	{
-		FVector Vel = ItemMesh->GetPhysicsLinearVelocity();
-		float CurrentSpeedSq = Vel.SizeSquared();
-		float MaxSpeedSq = MaxLinearVelocity * MaxLinearVelocity;
-
-		if (CurrentSpeedSq > MaxSpeedSq)
+		if (ItemMesh && ItemMesh->IsSimulatingPhysics())
 		{
-			ItemMesh->SetPhysicsLinearVelocity(Vel.GetSafeNormal() * MaxLinearVelocity);
+			FVector Vel = ItemMesh->GetPhysicsLinearVelocity();
+			if (Vel.SizeSquared() > FMath::Square(MaxLinearVelocity))
+			{
+				ItemMesh->SetPhysicsLinearVelocity(Vel.GetSafeNormal() * MaxLinearVelocity);
+			}
+
+			FVector AngVel = ItemMesh->GetPhysicsAngularVelocityInDegrees();
+			if (AngVel.SizeSquared() > FMath::Square(MaxAngularVelocity))
+			{
+				ItemMesh->SetPhysicsAngularVelocityInDegrees(AngVel.GetSafeNormal() * MaxAngularVelocity);
+			}
 		}
 
-		FVector AngVel = ItemMesh->GetPhysicsAngularVelocityInDegrees();
-		if (AngVel.SizeSquared() > (MaxAngularVelocity * MaxAngularVelocity))
-		{
-			ItemMesh->SetPhysicsAngularVelocityInDegrees(AngVel.GetSafeNormal() * MaxAngularVelocity);
-		}
+		ServerTransform = GetActorTransform();
+		return;
+	}
+	
+	FVector CurrentLoc = GetActorLocation();
+	FQuat CurrentRot = GetActorQuat();
+	FVector TargetLoc = TargetTransform.GetLocation();
+	FQuat TargetRot = TargetTransform.GetRotation();
+
+	float DistSq = FVector::DistSquared(CurrentLoc, TargetLoc);
+
+	if (DistSq > (TeleportThreshold * TeleportThreshold))
+	{
+		SetActorLocationAndRotation(TargetLoc, TargetRot);
+	}
+	else
+	{
+		FVector NewLoc = FMath::VInterpTo(CurrentLoc, TargetLoc, DeltaTime, InterpSpeed);
+		
+		FQuat NewRot = FMath::QInterpTo(CurrentRot, TargetRot, DeltaTime, InterpSpeed * 0.8f);
+		
+		SetActorLocationAndRotation(NewLoc, NewRot);
 	}
 }
 
@@ -76,8 +128,6 @@ void ABFItemActor::PickUp(AActor* Parent, FName Socketname)
 
 		FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, true);
 		AttachToComponent(Parent->GetRootComponent(), AttachRules, Socketname);
-
-		// AttachToComponent(Cast<ACharacter>(Parent)->GetMesh(), AttachRules, SocketName);
 	}
 }
 
@@ -100,7 +150,7 @@ void ABFItemActor::Throw(FVector ThrowVelocity, AActor* Thrower)
 		ItemMesh->AddImpulse(ThrowVelocity, NAME_None, true);
 
 		FTimerDelegate TimerDel;
-		TimerDel.BindUObject(this, &ABFItemActor::RestoreCollision,Thrower);
+		TimerDel.BindUObject(this, &ABFItemActor::RestoreCollision, Thrower);
 		GetWorld()->GetTimerManager().SetTimer(CollisionResetTimerHandle, TimerDel, 0.5f, false);
 	}
 }
@@ -112,4 +162,3 @@ void ABFItemActor::RestoreCollision(AActor* Thrower)
 		ItemMesh->IgnoreActorWhenMoving(Thrower, false);
 	}
 }
-

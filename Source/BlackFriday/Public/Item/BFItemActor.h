@@ -19,6 +19,7 @@ protected:
 
 public:	
 	virtual void Tick(float DeltaTime) override;
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BF|Component")
 	UStaticMeshComponent* ItemMesh;
@@ -35,6 +36,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BF|Physics")
 	float AngularDamping;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BF|Network")
+	float InterpSpeed = 15.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BF|Network")
+	float TeleportThreshold = 500.0f;
+
 	UFUNCTION(BlueprintCallable, Category = "BF|Interaction")
 	void PickUp(AActor* Parent, FName Socketname);
 
@@ -42,7 +49,15 @@ public:
 	void Throw(FVector ThrowVelocity, AActor* Thrower);
 
 protected:
-	FTimerHandle CollisionResetTimerHandle;
+	UPROPERTY(ReplicatedUsing = OnRep_ServerTransform)
+	FTransform ServerTransform;
 
+	FTransform TargetTransform;
+
+	UFUNCTION()
+	void OnRep_ServerTransform();
+
+	// 충돌 복구용
+	FTimerHandle CollisionResetTimerHandle;
 	void RestoreCollision(AActor* Thrower);
 };
