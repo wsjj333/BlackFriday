@@ -33,15 +33,16 @@ void UBFPushComponent::OnOwnerHit(AActor* SelfActor, AActor* OtherActor, FVector
 	UPrimitiveComponent* HitComp = Hit.GetComponent();
 	if (HitComp && HitComp->IsSimulatingPhysics())
 	{
-		FVector MyVelocity = SelfActor->GetVelocity();
+		FVector PushDir = -Hit.ImpactNormal;
+
+		PushDir.Z = 0.0f;
+		PushDir.Normalize();
+		
+		float MySpeed = SelfActor->GetVelocity().Size();
+		
+		FVector TargetVelocity = PushDir * (MySpeed * 1.3f); 
 		FVector OtherVelocity = HitComp->GetPhysicsLinearVelocity();
-
-		FVector TargetForce = (MyVelocity - OtherVelocity) * PushStrength;
-
-		if (bFlattenZ)
-		{
-			TargetForce.Z = 0.0f;
-		}
+		FVector TargetForce = (TargetVelocity - OtherVelocity) * PushStrength;
 
 		TargetForce = TargetForce.GetClampedToMaxSize(MaxForceLimit);
 
