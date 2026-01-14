@@ -16,7 +16,10 @@ ABFCartNetActor::ABFCartNetActor()
 	CartMesh->SetCollisionProfileName(TEXT("PhysicsActor"));
 
 	bReplicates = true;
-
+	NetUpdateFrequency = 100.0f;
+	MinNetUpdateFrequency = 30.0f;
+	NetPriority = 3.0f;
+	
 	SetReplicateMovement(false);
 
 	InterpSpeed = 15.0f;

@@ -19,6 +19,10 @@ ABFItemActor::ABFItemActor()
 	ItemMesh->BodyInstance.bUseCCD = true;
 
 	bReplicates = true;
+	NetUpdateFrequency = 100.0f;
+	MinNetUpdateFrequency = 30.0f;
+	NetPriority = 3.0f;
+	
 	SetReplicateMovement(true);
 
 	MaxLinearVelocity = 2500.0f;  // 너무 빠르지 않게
