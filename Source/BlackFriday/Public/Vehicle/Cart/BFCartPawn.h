@@ -3,15 +3,14 @@
 #include "CoreMinimal.h"
 #include "InputActionValue.h"
 #include "GameFramework/Pawn.h"
+#include "Net/UnrealNetwork.h"
 #include "BFCartPawn.generated.h"
 
 class UInputAction;
 class UInputMappingContext;
 class UBoxComponent;
-class UCapsuleComponent;
 class UStaticMeshComponent;
 class USceneComponent;
-class UBFCartMovementComponent;
 class ABFCartDriverCharacter;
 
 UCLASS()
@@ -21,12 +20,12 @@ class BLACKFRIDAY_API ABFCartPawn : public APawn
 
 public:
 	ABFCartPawn();
+	
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 	virtual void BeginPlay() override;
-	
 	virtual void Tick(float DeltaSeconds) override;
-	
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	void SuspensionCast(USceneComponent* WheelComp) const;
@@ -55,27 +54,32 @@ protected:
 	float DownForce = -4900000.0f;
 	
 	UPROPERTY(EditDefaultsOnly, Category="BF|Movement")
-	double SteeringTorque = 900000000.0f;
+	double SteeringTorque = 90000000.0f;
 	
 	float SteeringMultiplier = 2.0f;
 	
 	bool bIsDrifting = false;
 	FRotator DriftRotation = FRotator(0.0f, 0.0f, 0.0f);
 	float DriftSteer = 0.0f;
+	
+	UPROPERTY(EditAnywhere, Category="BF|Cart")
 	float SuspensionForceMultiplier = 10000000.0f;
 	
-	UPROPERTY(EditDefaultsOnly)
+	UPROPERTY(EditAnywhere, Category="BF|Cart")
+	float WheelRadius = 18.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category="BF|Cart")
 	FVector CartCenterOfMess = FVector(0.0f, 0.0f, -10.0f);
 	
 	/** 차체가 땅에 닿아있는지 판단하는 벡터 */
-	UPROPERTY(EditAnywhere)
-	FVector GroundTraceEnd = FVector(0.0f, 0.0f, 1500.0f);
+	UPROPERTY(EditAnywhere, Category="BF|Cart")
+	FVector GroundTraceEnd = FVector(0.0f, 0.0f, 150.0f);
 	
 	UPROPERTY(EditDefaultsOnly, Category = "BF|Movement")
 	float MaxAcceleration = 15000.0f;
 	
 	UPROPERTY(EditAnywhere, Category="BF|Movement")
-	float CartSpeed = 1000.0f;
+	float CartSpeed = 10000.0f;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "BF|Input")
 	TObjectPtr<UInputMappingContext> CartMappingContext;

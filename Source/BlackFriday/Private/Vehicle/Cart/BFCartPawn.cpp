@@ -17,7 +17,7 @@ ABFCartPawn::ABFCartPawn()
 	Root = CreateDefaultSubobject<UBoxComponent>(TEXT("Root"));
 	SetRootComponent(Root);
 	Root->SetCollisionProfileName(TEXT("Pawn"));
-	Root->SetBoxExtent(FVector(48.0f, 30.0f, 45.0f));
+	Root->SetBoxExtent(FVector(48.0f, 30.0f, 50.0f));
 	// Root->BodyInstance.bLockZRotation = true;
 
 	CartBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CartBody"));
@@ -124,13 +124,14 @@ void ABFCartPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	// SuspensionCast(WheelFRComp);
+	SuspensionCast(WheelFRComp);
+	SuspensionCast(WheelFLComp);
+	SuspensionCast(WheelBRComp);
+	SuspensionCast(WheelBLComp);
+	
 	AccelerateCart();
 	CalculateAcceleration();
 	RotateMeshes();
-	// SuspensionCast(WheelFLComp);
-	// SuspensionCast(WheelBRComp);
-	// SuspensionCast(WheelBLComp);
 }
 
 void ABFCartPawn::SuspensionCast(USceneComponent* WheelComp) const
@@ -138,21 +139,21 @@ void ABFCartPawn::SuspensionCast(USceneComponent* WheelComp) const
 	FHitResult HitResult;
 
 	FVector Start = WheelComp->GetComponentLocation();
-	FVector End = Start + WheelComp->GetUpVector() * -60.0f;
+	FVector End = Start + WheelComp->GetUpVector() * -WheelRadius;
 
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(this);
 
-	// DrawDebugLine(
-	// 	GetWorld(),
-	// 	Start,
-	// 	End,
-	// 	FColor::Red,
-	// 	false,
-	// 	5.0f,
-	// 	0.1f,
-	// 	1.0f
-	// );
+	DrawDebugLine(
+		GetWorld(),
+		Start,
+		End,
+		FColor::Red,
+		false,
+		1.0f,
+		0.1f,
+		1.0f
+	);
 
 	bool bHit = GetWorld()->LineTraceSingleByChannel(
 		HitResult,
@@ -167,21 +168,21 @@ void ABFCartPawn::SuspensionCast(USceneComponent* WheelComp) const
 		return;
 	}
 
-	// float HitResultDistance = HitResult.Distance;
-	// float Normalized = FMath::GetRangePct(0.0f, 60.0f, HitResultDistance);
-	//
-	// FVector TraceStart = HitResult.TraceStart;
-	// FVector TraceEnd = HitResult.TraceEnd;
-	// FVector UnitDirection = (TraceEnd - TraceStart).GetSafeNormal();
-	//
-	// FVector Force = (1.0f - Normalized) * UnitDirection * SuspensionForceMultiplier;
-	// FVector WheelCompLocation = WheelComp->GetComponentLocation();
-	//
-	// CartBody->AddForceAtLocation(Force, WheelCompLocation);
-	//
+	float HitResultDistance = HitResult.Distance;
+	float Normalized = FMath::GetRangePct(0.0f, WheelRadius, HitResultDistance);
+	
+	FVector TraceStart = HitResult.TraceStart;
+	FVector TraceEnd = HitResult.TraceEnd;
+	FVector UnitDirection = (TraceStart - TraceEnd).GetSafeNormal();
+	
+	FVector Force = (1.0f - Normalized) * UnitDirection * SuspensionForceMultiplier;
+	FVector WheelCompLocation = WheelComp->GetComponentLocation();
+	
+	Root->AddForceAtLocation(Force, WheelCompLocation);
+	
 	// UStaticMeshComponent* WheelMesh = Cast<UStaticMeshComponent>(WheelComp->GetChildComponent(0));
 	// float RelativeLocationZ = WheelMesh->GetRelativeLocation().Z;
-	// float TargetValue = HitResultDistance * -1.0f + 32.0f;
+	// float TargetValue = HitResultDistance * -1.0f + WheelRadius;
 	//
 	// float NewLocationZ = FMath::FInterpTo(
 	// 	RelativeLocationZ,
@@ -297,9 +298,17 @@ void ABFCartPawn::AccelerateCart() const
 	const FVector Force = CartForwardVector * CartMass * AccelerationInput * CartSpeed * SpeedModifier +
 		CurrentDownForce;
 
-	// Root->AddForceAtLocation(Force, Root->GetComponentLocation());
+	Root->AddForceAtLocation(Force, Root->GetComponentLocation());
 	
-	Root->AddForce(Force);
+	// UE_LOG(LogTemp, Warning, TEXT("AngVel: %s"),
+	// *Root->GetPhysicsAngularVelocityInRadians().ToString());
+	
+	UE_LOG(LogTemp, Warning, TEXT("ForwardVector: %s | DownForce: %s | Force: %s"),
+	*CartForwardVector.ToString(),
+	*CurrentDownForce.ToString(),
+	*Force.ToString());
+	
+	
 
 	// SetCartCenterOfMass();
 }
@@ -330,7 +339,7 @@ bool ABFCartPawn::IsOnGround() const
 		End,
 		FColor::Blue,
 		false,
-		5.0f,
+		0.1f,
 		0.1f,
 		1.0f
 	);
