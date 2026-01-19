@@ -76,3 +76,6 @@ DerivedDataCache/*
 
 # JetBrains IDE
 .idea/
+
+# Asset Folder
+Content/PublicAsset/*
