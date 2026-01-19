@@ -1,13 +1,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InputActionValue.h"
 #include "GameFramework/Pawn.h"
+#include "Net/UnrealNetwork.h"
 #include "BFCartPawn.generated.h"
 
-class UCapsuleComponent;
+class UInputAction;
+class UInputMappingContext;
+class UBoxComponent;
 class UStaticMeshComponent;
 class USceneComponent;
-class UBFCartMovementComponent;
 
 UCLASS()
 class BLACKFRIDAY_API ABFCartPawn : public APawn
@@ -17,40 +20,130 @@ class BLACKFRIDAY_API ABFCartPawn : public APawn
 public:
 	ABFCartPawn();
 
-	virtual void Tick(float DeltaSeconds) override;
-	virtual UPawnMovementComponent* GetMovementComponent() const override;
-
-	// Character가 잡을 핸들 위치 제공
-	UFUNCTION(BlueprintCallable, Category="Cart|Pull")
-	USceneComponent* GetHandleComponent() const { return Handle; }
-	
-	// Character를 위치 시킬 방향 제공
-	UFUNCTION(BlueprintCallable, Category="Cart|Pull")
-	USceneComponent* GetHandleFacingComponent() const { return HandleArrow; }
-
-	// 안전하게 입력 라우팅 (Character/Controller가 호출)
-	void SetThrottle(float Value);
-	void SetSteer(float Value);
-	void SetDriftHeld(bool bHeld);
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
-private:
-	UPROPERTY(VisibleAnywhere)
-	UCapsuleComponent* Capsule;
+	// ----- Physics / Movement -----
+	void SuspensionCast(USceneComponent* WheelComp) const;
+	bool IsOnGround() const;
 
-	UPROPERTY(VisibleAnywhere)
-	UStaticMeshComponent* CartMesh;
+	// 입력 처리(로컬)
+	void SetAccelerationInput(const FInputActionValue& Value);
+	void SteerCart(const FInputActionValue& Value);
+	void OnAccelerationEnded(const FInputActionValue& Value);
+	void OnSteeringEnded(const FInputActionValue& Value);
 
-	// 캐릭터가 붙는 기준점(핸들)
-	UPROPERTY(VisibleAnywhere)
-	USceneComponent* Handle;
-	
-	// 캐릭터가 붙는 기준점의 방향(핸들)
-	UPROPERTY(VisibleAnywhere)
-	USceneComponent* HandleArrow;
+	// 서버에서만 호출되는 물리 적용 루틴
+	void ServerSimTick(float DeltaSeconds);
+	void CalculateAcceleration(float DeltaSeconds);
+	void AccelerateCart() const;
 
-	UPROPERTY(VisibleAnywhere)
-	UBFCartMovementComponent* CartMovement;
+	// Cosmetic (클라에서 복제값 기반으로만)
+	void RotateMeshes(float DeltaSeconds);
+
+	// ----- RPCs -----
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SetAccelerationAxis(float Axis);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SetSteeringAxis(float Axis);
+
+	// ----- Replicated State -----
+	// “플레이어가 누르고 있는” 입력축 (서버 권한)
+	UPROPERTY(Replicated)
+	float Rep_AccelAxis = 0.0f;
+
+	UPROPERTY(Replicated)
+	float Rep_SteerAxis = 0.0f;
+
+	// 서버가 만든 “물리/애니메이션용 스무딩 결과”
+	UPROPERTY(Replicated)
+	float Rep_AccelerationInput = 0.0f;
+
+	UPROPERTY(Replicated)
+	float Rep_Acceleration = 0.0f;
+
+	UPROPERTY(Replicated)
+	float Rep_DriftSteer = 0.0f;
+
+	UPROPERTY(Replicated)
+	FRotator Rep_DriftRotation = FRotator::ZeroRotator;
+
+	// ----- Tunables -----
+	float SpeedModifier = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category="BF|Movement")
+	float DownForce = -4900000.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category="BF|Movement")
+	double SteeringTorque = 90000000.0f;
+
+	UPROPERTY(EditAnywhere, Category="BF|Movement")
+	float SteeringMultiplier = 2.0f;
+
+	UPROPERTY(EditAnywhere, Category="BF|Cart")
+	float SuspensionForceMultiplier = 10000000.0f;
+
+	UPROPERTY(EditAnywhere, Category="BF|Cart")
+	float WheelRadius = 18.0f;
+
+	UPROPERTY(EditAnywhere, Category="BF|Cart")
+	FVector GroundTraceEnd = FVector(0.0f, 0.0f, 150.0f);
+
+	UPROPERTY(EditDefaultsOnly, Category="BF|Movement")
+	float MaxAcceleration = 15000.0f;
+
+	UPROPERTY(EditAnywhere, Category="BF|Movement")
+	float CartSpeed = 10000.0f;
+
+	// ----- Input -----
+	UPROPERTY(EditDefaultsOnly, Category = "BF|Input")
+	TObjectPtr<UInputMappingContext> CartMappingContext;
+
+	UPROPERTY(EditDefaultsOnly, Category = "BF|Input")
+	TObjectPtr<UInputAction> AccelerationAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "BF|Input")
+	TObjectPtr<UInputAction> SteeringAction;
+
+	// ----- Components -----
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBoxComponent> Root;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UStaticMeshComponent> CartBody;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UStaticMeshComponent> CartHandle;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<USceneComponent> Pivot;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<USceneComponent> WheelFRComp;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<USceneComponent> WheelFLComp;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<USceneComponent> WheelBRComp;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<USceneComponent> WheelBLComp;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UStaticMeshComponent> WheelFRMesh;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UStaticMeshComponent> WheelFLMesh;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UStaticMeshComponent> WheelBRMesh;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UStaticMeshComponent> WheelBLMesh;
 };
