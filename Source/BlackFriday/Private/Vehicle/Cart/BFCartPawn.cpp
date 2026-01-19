@@ -60,6 +60,22 @@ ABFCartPawn::ABFCartPawn()
 
 	WheelBLMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WheelBLMesh"));
 	WheelBLMesh->SetupAttachment(WheelBLComp);
+	
+	CasterForkFRMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CasterForkFRMesh"));
+	CasterForkFRMesh->SetupAttachment(Pivot);
+	CasterForkFRMesh->SetRelativeLocation(FVector(43.977692,13.037226,18.197203));
+	
+	CasterForkFLMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CasterForkFLMesh"));
+	CasterForkFLMesh->SetupAttachment(Pivot);
+	CasterForkFLMesh->SetRelativeLocation(FVector(43.977692,-13.037030,18.197218));
+	
+	CasterForkBRMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CasterForkBRMesh"));
+	CasterForkBRMesh->SetupAttachment(Pivot);
+	CasterForkBRMesh->SetRelativeLocation(FVector(-31.720028,26.393049,18.197172));
+	
+	CasterForkBLMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CasterForkBLMesh"));
+	CasterForkBLMesh->SetupAttachment(Pivot);
+	CasterForkBLMesh->SetRelativeLocation(FVector(-31.720029,-26.392992,18.197203));
 }
 
 void ABFCartPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

@@ -146,4 +146,16 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly)
 	TObjectPtr<UStaticMeshComponent> WheelBLMesh;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UStaticMeshComponent> CasterForkFRMesh;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UStaticMeshComponent> CasterForkFLMesh;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UStaticMeshComponent> CasterForkBRMesh;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UStaticMeshComponent> CasterForkBLMesh;
 };
