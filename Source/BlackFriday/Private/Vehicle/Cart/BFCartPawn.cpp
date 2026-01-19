@@ -136,16 +136,24 @@ void ABFCartPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	EnhancedInput->BindAction(SteeringAction,     ETriggerEvent::Triggered, this, &ABFCartPawn::SteerCart);
 	EnhancedInput->BindAction(SteeringAction,     ETriggerEvent::Completed, this, &ABFCartPawn::OnSteeringEnded);
 	EnhancedInput->BindAction(SteeringAction,     ETriggerEvent::Canceled,  this, &ABFCartPawn::OnSteeringEnded);
+	
+	EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABFCartPawn::OnMouseLook);
 }
 
 void ABFCartPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
-	// “물리”는 서버에서만
+	
 	if (HasAuthority())
 	{
+		// “물리”는 서버에서만
 		ServerSimTick(DeltaSeconds);
+	}
+	
+	if (IsLocallyControlled())
+	{
+		// 카메라 회전은 로컬 전용
+		HardClampControlRotation();
 	}
 
 	// “코스메틱”은 모든 곳에서 가능하나, 반드시 복제된 값 기반으로만
@@ -213,6 +221,58 @@ void ABFCartPawn::OnSteeringEnded(const FInputActionValue& Value)
 {
 	if (!IsLocallyControlled()) return;
 	Server_SetSteeringAxis(0.f);
+}
+
+void ABFCartPawn::OnMouseLook(const FInputActionValue& Value)
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC || !PC->IsLocalController())
+	{
+		return;
+	}
+
+	const FVector2D LookAxis = Value.Get<FVector2D>();
+	const float LookX = LookAxis.X;
+	const float LookY = LookAxis.Y;
+
+	FRotator ControlRot = PC->GetControlRotation();
+
+	ControlRot.Yaw   += LookX;
+	ControlRot.Pitch += LookY;
+
+	PC->SetControlRotation(ControlRot);
+
+	// 입력이 있을 때도 즉시 범위 보정
+	HardClampControlRotation();
+}
+
+void ABFCartPawn::HardClampControlRotation()
+{
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC || !PC->IsLocalController()) return;
+
+	const FRotator Original = PC->GetControlRotation();
+	FRotator Clamped = Original;
+
+	Clamped.Pitch = FMath::Clamp(Clamped.Pitch, -90.f, 90.f);
+
+	const float ActorYaw = GetActorRotation().Yaw;
+	float OffsetYaw = FMath::FindDeltaAngleDegrees(ActorYaw, Clamped.Yaw);
+	OffsetYaw = FMath::Clamp(OffsetYaw, -90.f, 90.f);
+	Clamped.Yaw = ActorYaw + OffsetYaw;
+
+	Clamped.Roll = 0.f;
+
+	// 거의 동일하면 불필요한 Set 방지
+	if (!Original.Equals(Clamped, 0.01f))
+	{
+		PC->SetControlRotation(Clamped);
+	}
 }
 
 bool ABFCartPawn::Server_SetAccelerationAxis_Validate(float Axis) { return FMath::IsFinite(Axis) && FMath::Abs(Axis) <= 1.1f; }

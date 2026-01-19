@@ -36,6 +36,10 @@ protected:
 	void SteerCart(const FInputActionValue& Value);
 	void OnAccelerationEnded(const FInputActionValue& Value);
 	void OnSteeringEnded(const FInputActionValue& Value);
+	void OnMouseLook(const FInputActionValue& Value);
+	
+	// 카메라(로컬)
+	void HardClampControlRotation();
 
 	// 서버에서만 호출되는 물리 적용 루틴
 	void ServerSimTick(float DeltaSeconds);
@@ -109,6 +113,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "BF|Input")
 	TObjectPtr<UInputAction> SteeringAction;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "BF|Input")
+	TObjectPtr<UInputAction> LookAction;
 
 	// ----- Components -----
 	UPROPERTY(EditDefaultsOnly)
