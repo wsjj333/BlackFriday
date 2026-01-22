@@ -176,15 +176,17 @@ void UBFNetworkPhysicsComponent::ApplyOwnerReconcile(float DeltaTime)
 	const FVector LocalVel = Prim->GetPhysicsLinearVelocity();
 
 	const float Dist = FVector::Dist(ServerPos, LocalPos);
-	
-	if (LocalVel.SizeSquared() < 10.f && Dist < 100.0f) 
+
+	if (LocalVel.SizeSquared() < 100.f && Dist < 50.0f)
 	{
-		if (ServerVel.SizeSquared() > 100.f)
-		{
-			return;
-		}
+		return; 
 	}
 	
+	if (LocalVel.SizeSquared() < 100.f && ServerVel.SizeSquared() > 10000.f)
+	{
+		return;
+	}
+
 	if (Dist < 30.0f) return;
 
 	if (Dist > TeleportDist)
