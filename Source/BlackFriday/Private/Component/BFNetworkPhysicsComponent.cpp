@@ -23,7 +23,6 @@ void UBFNetworkPhysicsComponent::BeginPlay()
 	PrevState = TargetState = RepState;
 	SmoothAlpha = 1.f;
 
-	// 초기화
 	if (Prim)
 	{
 		APawn* P = Cast<APawn>(GetOwner());
@@ -65,7 +64,7 @@ void UBFNetworkPhysicsComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProp
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(UBFNetworkPhysicsComponent, RepState, COND_SkipOwner);
-	DOREPLIFETIME_CONDITION(UBFNetworkPhysicsComponent, RepStateOwner, COND_None);
+	DOREPLIFETIME_CONDITION(UBFNetworkPhysicsComponent, RepStateOwner, COND_OwnerOnly);
 }
 
 void UBFNetworkPhysicsComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -119,7 +118,6 @@ void UBFNetworkPhysicsComponent::TickComponent(float DeltaTime, ELevelTick TickT
 			if (InputSendAccum >= SendInterval)
 			{
 				InputSendAccum = 0.f;
-				LastSentInput = Input;
 				ServerReceiveInput(Input);
 				if (Input.Buttons & 0x01) bJumpHoldLatched = false;
 			}
@@ -166,41 +164,6 @@ void UBFNetworkPhysicsComponent::TickComponent(float DeltaTime, ELevelTick TickT
 	}
 }
 
-void UBFNetworkPhysicsComponent::ApplyOwnerReconcile(float DeltaTime)
-{
-	if (!Prim || !bHasOwnerState || !Prim->IsSimulatingPhysics()) return;
-
-	const FVector ServerPos = (FVector)LastOwnerState.Pos;
-	const FVector ServerVel = (FVector)LastOwnerState.LinVel;
-	const FVector LocalPos = Prim->GetComponentLocation();
-	const FVector LocalVel = Prim->GetPhysicsLinearVelocity();
-
-	const float Dist = FVector::Dist(ServerPos, LocalPos);
-
-	if (LocalVel.SizeSquared() < 100.f && Dist < 50.0f)
-	{
-		return; 
-	}
-	
-	if (LocalVel.SizeSquared() < 100.f && ServerVel.SizeSquared() > 10000.f)
-	{
-		return;
-	}
-
-	if (Dist < 30.0f) return;
-
-	if (Dist > TeleportDist)
-	{
-		Prim->SetWorldLocation(ServerPos, false, nullptr, ETeleportType::TeleportPhysics);
-		Prim->SetPhysicsLinearVelocity(ServerVel);
-		return;
-	}
-
-	FVector FixVel = (ServerPos - LocalPos) * OwnerPosCorrectGain;
-	FVector NewVel = FMath::VInterpTo(LocalVel, ServerVel + FixVel, DeltaTime, 5.0f);
-	Prim->SetPhysicsLinearVelocity(NewVel);
-}
-
 FBFPhysicsState UBFNetworkPhysicsComponent::BuildState() const
 {
 	FBFPhysicsState S;
@@ -215,71 +178,6 @@ FBFPhysicsState UBFNetworkPhysicsComponent::BuildState() const
 	return S;
 }
 
-// ApplyRemoteSmoothing 구현 (Proxy용)
-void UBFNetworkPhysicsComponent::ApplyRemoteSmoothing(float DeltaTime)
-{
-	if (!Prim) return;
-
-	if (RemoteInterpSpeed > 0.f)
-	{
-		float TimeDiff = TargetState.ServerTime - PrevState.ServerTime;
-		if (TimeDiff < 0.001f) TimeDiff = 0.033f;
-
-		float CalculatedSpeed = 1.0f / TimeDiff;
-		float FinalSpeed = FMath::Clamp(CalculatedSpeed, RemoteInterpSpeed * 0.8f, RemoteInterpSpeed * 1.5f);
-		SmoothAlpha += DeltaTime * FinalSpeed;
-	}
-	else
-	{
-		SmoothAlpha = 1.f;
-	}
-
-	// [잔걸음/떨림 방지] 목표 지점에 거의 도착했으면 고정
-	float DistSq = FVector::DistSquared(Prim->GetComponentLocation(), (FVector)TargetState.Pos);
-	if (DistSq < 1.0f) // 1cm
-	{
-		Prim->SetWorldLocationAndRotation((FVector)TargetState.Pos, TargetState.Rot, false, nullptr, ETeleportType::TeleportPhysics);
-		Prim->SetPhysicsLinearVelocity(FVector::ZeroVector); // 속도 제거
-		if (MoveComp) MoveComp->SetCurrentInput(FBFMoveInputNet()); // 입력도 초기화 느낌으로
-		
-		SmoothAlpha = 1.0f;
-		return;
-	}
-
-	if (SmoothAlpha >= 1.f)
-	{
-		FVector TargetPos = (FVector)TargetState.Pos;
-		FRotator TargetRot = TargetState.Rot;
-
-		FVector NewPos = FMath::VInterpTo(Prim->GetComponentLocation(), TargetPos, DeltaTime, VelLerpSpeed);
-		FRotator NewRot = FMath::RInterpTo(Prim->GetComponentRotation(), TargetRot, DeltaTime, VelLerpSpeed);
-
-		Prim->SetWorldLocationAndRotation(NewPos, NewRot, false, nullptr, ETeleportType::TeleportPhysics);
-		Prim->SetPhysicsLinearVelocity((FVector)TargetState.LinVel);
-	}
-	else
-	{
-		FVector StartPos = (FVector)PrevState.Pos;
-		FVector EndPos = (FVector)TargetState.Pos;
-		FVector NewPos = FMath::Lerp(StartPos, EndPos, SmoothAlpha);
-
-		FRotator StartRot = PrevState.Rot;
-		FRotator EndRot = TargetState.Rot;
-		FRotator NewRot = FMath::Lerp(StartRot, EndRot, SmoothAlpha);
-
-		Prim->SetWorldLocationAndRotation(NewPos, NewRot, false, nullptr, ETeleportType::TeleportPhysics);
-		
-		// 보간 중 속도 처리
-		FVector LerpVel = FMath::Lerp((FVector)PrevState.LinVel, (FVector)TargetState.LinVel, SmoothAlpha);
-		Prim->SetPhysicsLinearVelocity(LerpVel);
-	}
-	
-	// 애니메이션용 로컬 입력 시뮬레이션 (선택적)
-	// APawn* P = CachedPawn;
-	// if (P && bDriveOwnerAnimFromLocalInputWhenA && !P->IsLocallyControlled()) ...
-	// (필요 시 복구, 일단 핵심 로직은 위에서 끝남)
-}
-
 void UBFNetworkPhysicsComponent::GetLastServerStateBP(FVector& OutPos, FRotator& OutRot, FVector& OutLinVel, FVector& OutAngVel, float& OutTime) const
 {
 	OutPos = (FVector)RepState.Pos;
@@ -287,4 +185,23 @@ void UBFNetworkPhysicsComponent::GetLastServerStateBP(FVector& OutPos, FRotator&
 	OutLinVel = (FVector)RepState.LinVel;
 	OutAngVel = (FVector)RepState.AngVelDeg;
 	OutTime = RepState.ServerTime;
+}
+
+void UBFNetworkPhysicsComponent::SetHighPriorityMode(bool bEnable)
+{
+	if (APawn* P = Cast<APawn>(GetOwner()))
+	{
+		if (bEnable)
+		{
+			// 중요 상황
+			P->NetUpdateFrequency = 120.f;
+			P->MinNetUpdateFrequency = 90.f;
+		}
+		else
+		{
+			// 평상시
+			P->NetUpdateFrequency = 60.f;
+			P->MinNetUpdateFrequency = 30.f;
+		}
+	}
 }

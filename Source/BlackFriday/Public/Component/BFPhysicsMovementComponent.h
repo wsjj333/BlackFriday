@@ -29,24 +29,16 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="BF|Debug", meta=(ClampMin="0.01"))
 	float DebugInterval = 0.25f;
-
-	// 메시 옵션
-	UPROPERTY(EditAnywhere, Category="BF|Mesh")
-	bool bEnableUpperBodyRagdoll = false;
-
-	UPROPERTY(EditAnywhere, Category="BF|Mesh")
-	FName UpperBodyStartBone = TEXT("spine_01");
-
-	UPROPERTY(EditAnywhere, Category="BF|Mesh")
-	float UpperBodyBlendWeight = 0.5f;
-
-	// 외부에서 물리로 움직일 대상(UpdatedComponent)을 지정하지 않으면 RootPrimitive를 자동 사용 시도
+	
+	UPROPERTY(EditAnywhere, Category="BF|Move")
+	float RotationSpeed = 15.0f;
+	
 	UPROPERTY(EditAnywhere, Category="BF|Move")
 	TObjectPtr<UPrimitiveComponent> PhysicsPrimitiveOverride = nullptr;
 
 	// 튜닝
 	UPROPERTY(EditAnywhere, Category="BF|Move")
-	float MoveForce = 180000.f;
+	float MoveForce = 300000.f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Move")
 	float AirControl = 0.35f;
@@ -58,10 +50,10 @@ public:
 	float JumpImpulse = 420.f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Move")
-	float MovingLinearDamping = 1.0f; // 움직일 때 마찰력
+	float MovingLinearDamping = 1.0f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Move")
-	float BrakingLinearDamping = 10.0f; // 멈출 때 마찰력 (급정거용)
+	float BrakingLinearDamping = 50.0f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Ground")
 	float GroundTraceLength = 120.f;
@@ -70,7 +62,7 @@ public:
 	TEnumAsByte<ECollisionChannel> GroundTraceChannel = ECC_Visibility;
 
 	UPROPERTY(EditAnywhere, Category="BF|Ground")
-	float GroundedDotThreshold = 0.6f; // Up(0,0,1)과의 dot
+	float GroundedDotThreshold = 0.6f;
 
 	// 현재 바닥 상태
 	UPROPERTY(BlueprintReadOnly, Category="BF|Ground")
@@ -81,7 +73,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="BF|Motion")
 	FVector GetBFVelocity() const;
-	
+
+	UFUNCTION()
+	void OnComponentHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
 protected:
 	// 캐싱된 물리 컴포넌트
 	UPROPERTY(Transient)
@@ -96,7 +91,6 @@ private:
 
 	bool bJumpHeld = false;
 	bool bPrevJumpHeld = false;
-	bool bJumpJustPressed = false;
 
 	float DebugAcc = 0.f;
 	FVector SmoothAnimVelocity = FVector::ZeroVector;

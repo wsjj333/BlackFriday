@@ -18,24 +18,33 @@ FBFMoveInputNet UBFNetworkPhysicsComponent::BuildInputPacket() const
 	return In;
 }
 
-// [핵심] 서버가 입력을 받자마자 즉시 실행 (Tick 대기 안 함)
+static bool IsNewerFrame(uint16 A, uint16 B)
+{
+	return (uint16)(A - B) < 32768;
+}
+
 void UBFNetworkPhysicsComponent::ServerReceiveInput_Implementation(FBFMoveInputNet Input)
 {
-	ServerInput = Input;
-
-	// 무브먼트 컴포넌트에 즉시 적용 요청
-	if (MoveComp)
+	if (bHasRecvClientFrame && !IsNewerFrame(Input.ClientFrame, LastRecvClientFrame))
 	{
-		MoveComp->SetCurrentInput(Input); // 데이터 갱신
-		MoveComp->ApplyInputImmediately(Input); // ★ 물리 즉시 적용!
+		return;
 	}
 	
-	// 물리 깨우기 및 강제 넷 업데이트
+	bHasRecvClientFrame = true;
+	LastRecvClientFrame = Input.ClientFrame;
+	
+	ServerInput = Input;
+
+	if (MoveComp)
+	{
+		MoveComp->SetCurrentInput(Input);
+		MoveComp->ApplyInputImmediately(Input);
+	}
+	
 	if (Prim && (Input.MoveX != 0 || Input.MoveY != 0 || (Input.Buttons & 0x01)))
 	{
 		if (!Prim->IsSimulatingPhysics()) Prim->SetSimulatePhysics(true);
 		if (Prim->GetBodyInstance()) Prim->GetBodyInstance()->WakeInstance();
-		GetOwner()->ForceNetUpdate(); 
 	}
 }
 
@@ -44,7 +53,6 @@ bool UBFNetworkPhysicsComponent::ServerReceiveInput_Validate(FBFMoveInputNet Inp
 	return true;
 }
 
-// 기타 조회/보간 함수
 FVector UBFNetworkPhysicsComponent::GetReplicatedVelocity() const
 {
 	if (GetOwner() && GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
@@ -58,7 +66,6 @@ void UBFNetworkPhysicsComponent::OnRep_PhysicsState()
 	TargetState = RepState;
 	SmoothAlpha = 0.f;
 	
-	// 텔레포트
 	if (Prim)
 	{
 		float DistSq = FVector::DistSquared((FVector)TargetState.Pos, Prim->GetComponentLocation());
@@ -80,6 +87,15 @@ void UBFNetworkPhysicsComponent::OnRep_PhysicsStateOwner()
 		PrevState = TargetState;
 		TargetState = RepStateOwner;
 		SmoothAlpha = 0.f;
-		// 텔레포트 로직 동일...
+		if (Prim)
+		{
+			float DistSq = FVector::DistSquared((FVector)TargetState.Pos, Prim->GetComponentLocation());
+			
+			if (DistSq > TeleportDist * TeleportDist)
+			{
+				Prim->SetWorldLocationAndRotation((FVector)TargetState.Pos, TargetState.Rot, false, nullptr, ETeleportType::TeleportPhysics);
+				SmoothAlpha = 1.0f;
+			}
+		}
 	}
 }

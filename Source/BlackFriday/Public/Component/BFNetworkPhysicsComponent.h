@@ -23,7 +23,7 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	// [입력 관련 함수들]
+	// 입력
 	UFUNCTION(BlueprintCallable, Category="BF|NetInput")
 	void SetMoveInput(FVector2D Move);
 
@@ -39,7 +39,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BF|Net|Mode")
 	bool bDisableCollisionWhenNotSimulating = true;
 
-	UFUNCTION(Server, Reliable, WithValidation)
+	UFUNCTION(Server, Unreliable, WithValidation)
 	void ServerReceiveInput(FBFMoveInputNet Input);
 
 	FBFPhysicsState GetLastServerState() const { return RepState; }
@@ -47,38 +47,27 @@ public:
 	UFUNCTION(BlueprintPure, Category="BF|Net")
 	void GetLastServerStateBP(FVector& OutPos, FRotator& OutRot, FVector& OutLinVel, FVector& OutAngVel, float& OutTime) const;
 
-	// 입력 전송: 120Hz (8ms) - 대역폭 신경 안 씀
+	// 입력 전송
 	UPROPERTY(EditAnywhere, Category="BF|Net")
 	float InputSendHz = 120.f;
 
-	// 마우스 회전: 0.0 = 변화 즉시 무조건 전송
+	// 서버 상태 전송
 	UPROPERTY(EditAnywhere, Category="BF|Net")
-	float YawSendThresholdDeg = 0.0f;
-
-	// 서버 상태 전송: 90Hz (매우 부드러움)
-	UPROPERTY(EditAnywhere, Category="BF|Net")
-	float StateSendHz = 90.f;
-
-	// 오너/프록시 차별 없이 전부 90Hz
-	UPROPERTY(EditAnywhere, Category="BF|Net")
-	float OwnerStateSendHz = 90.f;
+	float StateSendHz = 120.f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Net")
-	float ProxyStateSendHz = 90.f;
+	float OwnerStateSendHz = 120.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BF|Net|Mode")
-	bool bDriveOwnerAnimFromLocalInputWhenA = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BF|Net|Mode", meta=(ClampMin="0.0"))
-	float OwnerAnimMaxSpeed = 600.f;
-
-	// 리컨실: 5미터까지는 텔레포트 안 함 (관대함)
+	UPROPERTY(EditAnywhere, Category="BF|Net")
+	float ProxyStateSendHz = 120.f;
+	
+	// 리컨실
 	UPROPERTY(EditAnywhere, Category="BF|Net|Correction")
 	float TeleportDist = 500.f;
 
-	// 보정 강도: 1.0 (매우 약하게, 부드럽게)
+	// 보정 강도
 	UPROPERTY(EditAnywhere, Category="BF|Net|OwnerReconcile")
-	float OwnerPosCorrectGain = 1.0f;
+	float OwnerPosCorrectGain = 6.0f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Net|OwnerReconcile")
 	float OwnerVelCorrectGain = 6.f;
@@ -87,19 +76,22 @@ public:
 	float OwnerMaxCorrectionAccel = 6000.f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Net|Correction")
-	float VelCorrectGain = 6.f;
-
-	UPROPERTY(EditAnywhere, Category="BF|Net|Correction")
 	float VelLerpSpeed = 10.f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Net|RemoteSmoothing")
-	float RemoteInterpSpeed = 20.f; // 보간 빠르게
+	float RemoteInterpSpeed = 40.f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Net|OwnerReconcile")
 	float OwnerTeleportDist = 500.f;
-
+	
+	UPROPERTY(EditAnywhere, Category="BF|Net|OwnerReconcile")
+	float OwnerDeadZone = 10.0f;
+	
 	UFUNCTION(BlueprintCallable, Category="BF|Net")
 	FVector GetReplicatedVelocity() const;
+
+	UFUNCTION(BlueprintCallable, Category="BF|Net")
+	void SetHighPriorityMode(bool bEnable);
 	
 private:
 	UPROPERTY(Transient)
@@ -119,7 +111,9 @@ private:
 
 	uint16 ClientFrameCounter = 0;
 
-	FBFMoveInputNet LastSentInput;
+	uint16 LastRecvClientFrame = 0;
+	bool bHasRecvClientFrame = false;
+	
 	FBFMoveInputNet ServerInput;
 
 	// 상태 동기화 변수
@@ -145,7 +139,6 @@ private:
 
 	void CacheRefs();
 	
-	// 이 함수들은 분리된 CPP 파일에 구현될 수 있음
 	FBFMoveInputNet BuildInputPacket() const;
 	FBFPhysicsState BuildState() const;
 	

@@ -12,7 +12,6 @@ UBFPhysicsMovementComponent::UBFPhysicsMovementComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 	
-	// 기본값 튜닝
 	MoveForce = 180000.f;
 	BrakingLinearDamping = 10.0f;
 	MovingLinearDamping = 1.0f;
@@ -25,18 +24,6 @@ void UBFPhysicsMovementComponent::BeginPlay()
 	Super::BeginPlay();
 	CachePrimitive();
 
-	// 1. 유령 컴포넌트 삭제
-	if (AActor* Owner = GetOwner())
-	{
-		TArray<UPawnMovementComponent*> AllMoveComps;
-		Owner->GetComponents(AllMoveComps);
-		for (UPawnMovementComponent* MC : AllMoveComps)
-		{
-			if (MC && MC != this) MC->DestroyComponent(); 
-		}
-	}
-
-	// 2. 메시 설정
 	if (AActor* Owner = GetOwner())
 	{
 		USkeletalMeshComponent* Mesh = Owner->FindComponentByClass<USkeletalMeshComponent>();
@@ -47,14 +34,13 @@ void UBFPhysicsMovementComponent::BeginPlay()
 			Mesh->SetAllBodiesSimulatePhysics(false);
 			Mesh->SetCollisionProfileName(TEXT("NoCollision"));
 			Mesh->AttachToComponent(Prim, FAttachmentTransformRules::SnapToTargetIncludingScale);
-			Mesh->SetRelativeLocation(FVector(0.f, 0.f, -90));
-			Mesh->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
 		}
 	}
 
 	if (Prim)
 	{
 		SetUpdatedComponent(Prim);
+		Prim->OnComponentHit.AddDynamic(this, &UBFPhysicsMovementComponent::OnComponentHit);
 	}
 
 	if (auto* NetComp = GetOwner()->FindComponentByClass<UBFNetworkPhysicsComponent>())
@@ -62,16 +48,11 @@ void UBFPhysicsMovementComponent::BeginPlay()
 		AddTickPrerequisiteComponent(NetComp);
 	}
 	
-	// [수정] FBodyInstance 에러 해결
-	// 코드에서 서브스테핑을 강제하는 부분은 제거했습니다.
-	// 대신 DefaultEngine.ini 에서 설정을 켜야 합니다. (아래 설명 참조)
 	if (Prim && Prim->GetBodyInstance())
 	{
 		FBodyInstance* BI = Prim->GetBodyInstance();
-		// CCD는 여기서 설정 가능
 		BI->SetUseCCD(true);
 		
-		// Solver Iteration은 설정 가능하면 높임 (버전 따라 다를 수 있음, 에러나면 이 두 줄도 삭제)
 		BI->PositionSolverIterationCount = 8;
 		BI->VelocitySolverIterationCount = 2; 
 	}
@@ -105,6 +86,7 @@ void UBFPhysicsMovementComponent::ApplyInputImmediately(const FBFMoveInputNet& I
 		bGrounded = false;
 		JumpCooldownTime = 0.3f;
 		if (Prim->GetBodyInstance()) Prim->GetBodyInstance()->WakeInstance();
+		if (GetOwner()) GetOwner()->ForceNetUpdate();
 	}
 }
 
@@ -119,15 +101,9 @@ void UBFPhysicsMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
 	const FVector CurrentPhysVel = bSimulating ? Prim->GetPhysicsLinearVelocity() : FVector::ZeroVector;
 	const FVector Loc = Prim->GetComponentLocation();
 
-	// 1. 바닥 체크
 	{
 		const FVector TraceStart = Loc;
-		float CheckLength = GroundTraceLength;
-		
-		if (GetOwner() && GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
-		{
-			CheckLength *= 1.2f; 
-		}
+		float CheckLength = GroundTraceLength * 1.2f; 
 
 		const FVector TraceEnd = TraceStart - (FVector::UpVector * CheckLength);
 		FHitResult Hit;
@@ -147,21 +123,19 @@ void UBFPhysicsMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
 		}
 	}
 
-	// 2. 타이머
 	if (JumpBufferTime > 0.f) JumpBufferTime -= DeltaTime;
 	if (JumpCooldownTime > 0.f) JumpCooldownTime -= DeltaTime;
 	
-	// 3. 마찰력 제어
 	bool bHasInput = (MoveX != 0.f || MoveY != 0.f);
 	if (bGrounded)
 		Prim->SetLinearDamping(bHasInput ? MovingLinearDamping : BrakingLinearDamping);
 	else
 		Prim->SetLinearDamping(0.1f);
 
-	// 4. 로컬 클라이언트 점프
 	if (APawn* P = Cast<APawn>(GetOwner()))
 	{
-		if (P->IsLocallyControlled())
+
+		if (P->IsLocallyControlled() || P->HasAuthority()) 
 		{
 			if (bGrounded && bSimulating && JumpBufferTime > 0.f && JumpCooldownTime <= 0.f)
 			{
@@ -170,19 +144,22 @@ void UBFPhysicsMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
 				Prim->SetPhysicsLinearVelocity(V);
 				Prim->SetLinearDamping(0.1f);
 				Prim->AddImpulse(FVector(0.f, 0.f, JumpImpulse), NAME_None, true);
-				
+                
 				bGrounded = false;
 				JumpBufferTime = 0.f;
 				JumpCooldownTime = 0.3f;
 				if (Prim->GetBodyInstance()) Prim->GetBodyInstance()->WakeInstance();
+
+				if (P->HasAuthority())
+				{
+					P->ForceNetUpdate();
+				}
 			}
 		}
 	}
 	
-	// 5. 이동 힘 가하기 (Physics Force)
 	if (bHasInput && bSimulating)
 	{
-		// Tick에서도 지속적으로 힘을 줘야 부드러움 (서버는 ApplyInputImmediately도 하고 이것도 함)
 		FVector LocalDir(MoveX, MoveY, 0.f);
 		if (LocalDir.SizeSquared() > 1.f) LocalDir.Normalize();
 
@@ -197,16 +174,13 @@ void UBFPhysicsMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
 			WorldDir.Normalize();
 			WorldDir *= AirControl;
 		}
-
-		if (CurrentPhysVel.Size2D() < MaxSpeed)
-		{
-			Prim->AddForce(WorldDir * MoveForce);
-		}
+        
+		Prim->AddForce(WorldDir * MoveForce);
+		
 		FVector NewVel = Prim->GetPhysicsLinearVelocity();
 		float NewSpeed2D = NewVel.Size2D();
 		if (NewSpeed2D > MaxSpeed)
 		{
-			// Z축(낙하 속도)은 건드리지 말고 수평 속도만 비율대로 줄임
 			float Scale = MaxSpeed / NewSpeed2D;
 			NewVel.X *= Scale;
 			NewVel.Y *= Scale;
@@ -214,7 +188,15 @@ void UBFPhysicsMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
 		}
 	}
 	
-	// 6. 스무싱
+	if (bSimulating) 
+	{
+		FRotator TargetRot(0.f, InputYawDeg, 0.f);
+		FRotator CurrentRot = Prim->GetComponentRotation();
+		FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, RotationSpeed);
+
+		Prim->SetWorldRotation(NewRot, false, nullptr, ETeleportType::TeleportPhysics);
+	}
+	
 	if (GetOwner() && GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		FVector TargetVel = FVector::ZeroVector;
@@ -229,7 +211,6 @@ void UBFPhysicsMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
 		if (Prim) SmoothAnimVelocity = Prim->GetPhysicsLinearVelocity();
 	}
 	
-	// 7. 디버그
 	if (bDebugMove)
 	{
 		DebugAcc += DeltaTime;
@@ -276,4 +257,29 @@ FVector UBFPhysicsMovementComponent::GetBFVelocity() const
 		}
 	}
 	return SmoothAnimVelocity;
+}
+
+void UBFPhysicsMovementComponent::OnComponentHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	if (GetOwner() && GetOwner()->HasAuthority())
+	{
+		if (NormalImpulse.SizeSquared() > 1000000.f)
+		{
+			GetOwner()->ForceNetUpdate();
+		}
+	}
+	
+	if (OtherActor && OtherActor != GetOwner())
+	{
+		if (OtherActor->IsA<APawn>() || NormalImpulse.SizeSquared() > 1000000.f)
+		{
+			if (APawn* P = Cast<APawn>(GetOwner()))
+			{
+				if (P->IsLocallyControlled())
+				{
+					P->ForceNetUpdate();
+				}
+			}
+		}
+	}
 }
