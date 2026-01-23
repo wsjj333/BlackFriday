@@ -200,8 +200,8 @@ void UBFNetworkPhysicsComponent::SetHighPriorityMode(bool bEnable)
 		else
 		{
 			// 평상시
-			P->NetUpdateFrequency = 60.f;
-			P->MinNetUpdateFrequency = 30.f;
+			P->NetUpdateFrequency = 30.f;
+			P->MinNetUpdateFrequency = 10.f;
 		}
 	}
 }
