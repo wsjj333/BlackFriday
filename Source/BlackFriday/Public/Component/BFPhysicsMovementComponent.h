@@ -38,22 +38,25 @@ public:
 
 	// 튜닝
 	UPROPERTY(EditAnywhere, Category="BF|Move")
-	float MoveForce = 300000.f;
+	float MoveForce = 500000.f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Move")
 	float AirControl = 0.35f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Move")
-	float MaxSpeed = 800.f; // 최대 속도 제한
+	float MaxSpeed = 700.f;
+	
+	UPROPERTY(EditAnywhere, Category="BF|Move")
+	float AccelMultiplier = 2.5f;
 
+	UPROPERTY(EditAnywhere, Category="BF|Move")
+	float MovingLinearDamping = 3.0f;
+
+	UPROPERTY(EditAnywhere, Category="BF|Move")
+	float BrakingLinearDamping = 20.0f;
+	
 	UPROPERTY(EditAnywhere, Category="BF|Move")
 	float JumpImpulse = 420.f;
-
-	UPROPERTY(EditAnywhere, Category="BF|Move")
-	float MovingLinearDamping = 1.0f;
-
-	UPROPERTY(EditAnywhere, Category="BF|Move")
-	float BrakingLinearDamping = 50.0f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Ground")
 	float GroundTraceLength = 120.f;

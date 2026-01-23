@@ -159,43 +159,66 @@ void UBFPhysicsMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
 	}
 	
 	if (bHasInput && bSimulating)
-	{
-		FVector LocalDir(MoveX, MoveY, 0.f);
-		if (LocalDir.SizeSquared() > 1.f) LocalDir.Normalize();
+    {
+        FVector LocalDir(MoveX, MoveY, 0.f);
+        if (LocalDir.SizeSquared() > 1.f) LocalDir.Normalize();
 
-		const FRotator YawRot(0.f, InputYawDeg, 0.f);
-		FVector WorldDir = YawRot.RotateVector(LocalDir);
+        const FRotator YawRot(0.f, InputYawDeg, 0.f);
+        FVector WorldDir = YawRot.RotateVector(LocalDir);
 
-		if (bGrounded)
-			WorldDir = FVector::VectorPlaneProject(WorldDir, GroundNormal).GetSafeNormal();
-		else
-		{
-			WorldDir.Z = 0.f;
-			WorldDir.Normalize();
-			WorldDir *= AirControl;
-		}
+        if (bGrounded)
+            WorldDir = FVector::VectorPlaneProject(WorldDir, GroundNormal).GetSafeNormal();
+        else
+        {
+            WorldDir.Z = 0.f;
+            WorldDir.Normalize();
+            WorldDir *= AirControl;
+        }
+
+        float CurrentSpeed2D = Prim->GetPhysicsLinearVelocity().Size2D();
+        float SpeedRatio = FMath::Clamp(CurrentSpeed2D / MaxSpeed, 0.f, 1.f);
         
-		Prim->AddForce(WorldDir * MoveForce);
-		
-		FVector NewVel = Prim->GetPhysicsLinearVelocity();
-		float NewSpeed2D = NewVel.Size2D();
-		if (NewSpeed2D > MaxSpeed)
-		{
-			float Scale = MaxSpeed / NewSpeed2D;
-			NewVel.X *= Scale;
-			NewVel.Y *= Scale;
-			Prim->SetPhysicsLinearVelocity(NewVel);
-		}
-	}
-	
-	if (bSimulating) 
-	{
-		FRotator TargetRot(0.f, InputYawDeg, 0.f);
-		FRotator CurrentRot = Prim->GetComponentRotation();
-		FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, RotationSpeed);
+        float DynamicMultiplier = FMath::Lerp(AccelMultiplier, 1.0f, SpeedRatio);
+        
+        Prim->AddForce(WorldDir * MoveForce * DynamicMultiplier);
+        
+        if (bGrounded) Prim->SetLinearDamping(MovingLinearDamping);
 
-		Prim->SetWorldRotation(NewRot, false, nullptr, ETeleportType::TeleportPhysics);
-	}
+        FVector NewVel = Prim->GetPhysicsLinearVelocity();
+        float NewSpeed2D = NewVel.Size2D();
+        if (NewSpeed2D > MaxSpeed)
+        {
+            float Scale = MaxSpeed / NewSpeed2D;
+            NewVel.X *= Scale;
+            NewVel.Y *= Scale;
+            Prim->SetPhysicsLinearVelocity(NewVel);
+        }
+    }
+    else if (bGrounded && bSimulating)
+    {
+        Prim->SetLinearDamping(BrakingLinearDamping);
+        
+        FVector Vel = Prim->GetPhysicsLinearVelocity();
+        if (Vel.SizeSquared2D() < 100.f) // 10cm/s 미만이면
+        {
+            Vel.X = 0.f;
+            Vel.Y = 0.f;
+            Prim->SetPhysicsLinearVelocity(Vel);
+        }
+    }
+    else
+    {
+        Prim->SetLinearDamping(0.1f);
+    }
+
+    if (bSimulating) 
+    {
+        FRotator TargetRot(0.f, InputYawDeg, 0.f);
+        FRotator CurrentRot = Prim->GetComponentRotation();
+        FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, 15.0f);
+    	
+        Prim->SetWorldRotation(NewRot, false, nullptr, ETeleportType::TeleportPhysics);
+    }
 	
 	if (GetOwner() && GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
 	{
