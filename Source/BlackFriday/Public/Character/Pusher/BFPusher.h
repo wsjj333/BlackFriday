@@ -52,6 +52,12 @@ protected:
 	void OnJumpPressed(const FInputActionValue& Value);
 	void OnJumpReleased(const FInputActionValue& Value);
 	void OnToggleDriveModePressed(const FInputActionValue& Value);
+	void OnMoveEnded(const FInputActionValue& Value);
+	void HandleSteeringInput(const FInputActionValue& Value);
+	void OnSteeringEnded(const FInputActionValue& Value);
+	
+	// ----- etc -----
+	void HardClampControlRotation();
 	
 
 	// ----- Input Actions -----

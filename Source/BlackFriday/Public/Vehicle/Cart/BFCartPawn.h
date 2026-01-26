@@ -35,25 +35,22 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetAcceleration() const;
 	
+	UFUNCTION(BlueprintCallable)
+	FVector GetCurrentVelocity() const;
+	
+	// 입력 처리
 	void SetAccelerationInput(const FInputActionValue& Value);
 	void OnAccelerationEnded(const FInputActionValue& Value);
+	void SteerCart(const FInputActionValue& Value);
+	void OnSteeringEnded(const FInputActionValue& Value);
 
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
-	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	// ----- Physics / Movement -----
 	void SuspensionCast(USceneComponent* WheelComp) const;
 	bool IsOnGround() const;
-
-	// 입력 처리(로컬)
-	void SteerCart(const FInputActionValue& Value);
-	void OnSteeringEnded(const FInputActionValue& Value);
-	void OnMouseLook(const FInputActionValue& Value);
-	
-	// 카메라(로컬)
-	void HardClampControlRotation();
 
 	// 서버에서만 호출되는 물리 적용 루틴
 	void ServerSimTick(float DeltaSeconds);
@@ -117,6 +114,8 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category="BF|Movement")
 	float CartSpeed = 10000.0f;
+	
+	FVector CurrentVelocity = FVector(0.0, 0.0, 0.0);
 	
 	// 클라이언트(AnimInstance/코스메틱)에서 사용할 가속도 캐시
 	UPROPERTY(BlueprintReadOnly, Category="Cart|Anim", Transient)
