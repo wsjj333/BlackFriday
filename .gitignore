@@ -76,6 +76,9 @@ DerivedDataCache/*
 
 # JetBrains IDE
 .idea/
-/Content/Colab/PublicAsset/BlueSky
-/Content/Colab/PublicAsset/Hyper-Casual_Character_Pack
-/Content/Colab/PublicAsset/Megastore
+
+# Asset Folders
+Content/BlueSky/*
+Content/Hyper-Casual_Character_Pack/*
+Content/Megastore/*
+Content/Sphere_Drone/*
