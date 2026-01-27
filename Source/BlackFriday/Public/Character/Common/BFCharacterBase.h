@@ -6,6 +6,8 @@
 #include "GameFramework/Character.h"
 #include "BFCharacterBase.generated.h"
 
+class UBFTeamComponent;
+
 UCLASS()
 class BLACKFRIDAY_API ABFCharacterBase : public ACharacter
 {
@@ -18,6 +20,9 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	
+	UPROPERTY()
+	TObjectPtr<UBFTeamComponent> BFTeamComponent;
 
 public:	
 	// Called every frame
