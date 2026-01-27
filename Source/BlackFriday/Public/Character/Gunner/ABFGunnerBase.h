@@ -25,21 +25,21 @@ protected:
 	virtual void BeginPlay();
 
 protected:
-	//¡∂¿€
+	//Ï°∞Ïûë
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	USpringArmComponent* CameraBoom; //ƒ´∏ﬁ∂Û ∫’
+	USpringArmComponent* CameraBoom; //Ïπ¥Î©îÎùº Î∂ê
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* FollowCamera; //ƒ´∏ﬁ∂Û
+	UCameraComponent* FollowCamera; //Ïπ¥Î©îÎùº
 
 	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* DefaultMappingContext;
 
-	//¿Œ«≤µÈ
+	//Ïù∏ÌíãÎì§
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* JumpAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -48,7 +48,7 @@ private:
 	UInputAction* LookAction;
 
 public:
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; } // ƒ´∏ﬁ∂Û ∫’ Getter
-	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; } //ƒ´∏ﬁ∂Û Getter
+	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; } // Ïπ¥Î©îÎùº Î∂ê Getter
+	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; } //Ïπ¥Î©îÎùº Getter
 
 };

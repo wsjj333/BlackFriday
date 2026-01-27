@@ -1,6 +1,5 @@
 #include "Vehicle/Cart/BFCartPawn.h"
 
-#include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -76,6 +75,15 @@ ABFCartPawn::ABFCartPawn()
 	CasterForkBLMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CasterForkBLMesh"));
 	CasterForkBLMesh->SetupAttachment(Pivot);
 	CasterForkBLMesh->SetRelativeLocation(FVector(-31.720029,-26.392992,18.197203));
+	
+	PusherStandAnker = CreateDefaultSubobject<USceneComponent>(TEXT("PusherStandAnker"));
+	PusherStandAnker->SetupAttachment(Pivot);
+	
+	HandleL = CreateDefaultSubobject<USceneComponent>(TEXT("HandleL"));
+	HandleL->SetupAttachment(CartHandle);
+	
+	HandleR = CreateDefaultSubobject<USceneComponent>(TEXT("HandleR"));
+	HandleR->SetupAttachment(CartHandle);
 }
 
 void ABFCartPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -91,6 +99,21 @@ void ABFCartPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ABFCartPawn, Rep_DriftRotation);
 }
 
+USceneComponent* ABFCartPawn::GetPusherStandAnkerComponent() const
+{
+	return PusherStandAnker;
+}
+
+FTransform ABFCartPawn::GetHandleLTransform() const
+{
+	return HandleL->GetComponentTransform();
+}
+
+FTransform ABFCartPawn::GetHandleRTransform() const
+{
+	return HandleR->GetComponentTransform();
+}
+
 void ABFCartPawn::BeginPlay()
 {
 	Super::BeginPlay();
@@ -99,45 +122,6 @@ void ABFCartPawn::BeginPlay()
 	{
 		SetReplicateMovement(true);
 	}
-
-	// 입력 매핑은 “로컬 플레이어”에게만
-	if (IsLocallyControlled())
-	{
-		if (APlayerController* PC = Cast<APlayerController>(Controller))
-		{
-			if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
-			{
-				if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
-					LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-				{
-					Subsystem->AddMappingContext(CartMappingContext, 0);
-				}
-			}
-		}
-	}
-}
-
-void ABFCartPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
-	// 소유 클라이언트만 바인딩하는 습관을 들이면 안전합니다.
-	if (!IsLocallyControlled())
-	{
-		return;
-	}
-
-	UEnhancedInputComponent* EnhancedInput = CastChecked<UEnhancedInputComponent>(PlayerInputComponent);
-
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Triggered, this, &ABFCartPawn::SetAccelerationInput);
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Completed, this, &ABFCartPawn::OnAccelerationEnded);
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Canceled,  this, &ABFCartPawn::OnAccelerationEnded);
-	
-	EnhancedInput->BindAction(SteeringAction,     ETriggerEvent::Triggered, this, &ABFCartPawn::SteerCart);
-	EnhancedInput->BindAction(SteeringAction,     ETriggerEvent::Completed, this, &ABFCartPawn::OnSteeringEnded);
-	EnhancedInput->BindAction(SteeringAction,     ETriggerEvent::Canceled,  this, &ABFCartPawn::OnSteeringEnded);
-	
-	EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABFCartPawn::OnMouseLook);
 }
 
 void ABFCartPawn::Tick(float DeltaSeconds)
@@ -150,11 +134,8 @@ void ABFCartPawn::Tick(float DeltaSeconds)
 		ServerSimTick(DeltaSeconds);
 	}
 	
-	if (IsLocallyControlled())
-	{
-		// 카메라 회전은 로컬 전용
-		HardClampControlRotation();
-	}
+	Acceleration = Rep_Acceleration;
+	CurrentVelocity = Root->GetPhysicsLinearVelocity();
 
 	// “코스메틱”은 모든 곳에서 가능하나, 반드시 복제된 값 기반으로만
 	RotateMeshes(DeltaSeconds);
@@ -169,7 +150,6 @@ void ABFCartPawn::ServerSimTick(float DeltaSeconds)
 	SuspensionCast(WheelBLComp);
 
 	// 서버 입력축 -> 서버 스무딩 값 생성
-	// (지금은 단순 예시: 원래 코드의 “땅 아닐 때 0” 정책 유지)
 	const float TargetAccel = IsOnGround() ? Rep_AccelAxis : 0.0f;
 	Rep_AccelerationInput = FMath::FInterpTo(Rep_AccelerationInput, TargetAccel, DeltaSeconds, 0.5f);
 
@@ -184,95 +164,50 @@ void ABFCartPawn::ServerSimTick(float DeltaSeconds)
 	// 토크 적용(서버만)
 	const double TorqueZ = Rep_DriftSteer * SteeringTorque * Rep_AccelerationInput * SteeringMultiplier;
 	Root->AddTorqueInRadians(FVector(0.f, 0.f, TorqueZ));
-
-	// 디버그는 서버에서 찍으면 “서버 화면/로그”에만 의미가 있습니다.
-	// 필요하면 IsLocallyControlled() 조건으로 클라 화면에만 출력하세요.
 }
 
 void ABFCartPawn::SetAccelerationInput(const FInputActionValue& Value)
 {
-	if (!IsLocallyControlled())
-	{
-		return;
-	}
-
 	const float Axis = Value.Get<float>();
 	Server_SetAccelerationAxis(Axis);
 }
 
 void ABFCartPawn::SteerCart(const FInputActionValue& Value)
 {
-	if (!IsLocallyControlled())
-	{
-		return;
-	}
-
 	const float Axis = Value.Get<float>();
 	Server_SetSteeringAxis(Axis);
 }
 
 void ABFCartPawn::OnAccelerationEnded(const FInputActionValue& Value)
 {
-	if (!IsLocallyControlled()) return;
 	Server_SetAccelerationAxis(0.f);
+}
+
+float ABFCartPawn::GetAcceleration() const
+{
+	return Acceleration;
+}
+
+FVector ABFCartPawn::GetCurrentVelocity() const
+{
+	return CurrentVelocity;
+}
+
+void ABFCartPawn::SetAccelAxis_Server(float Axis)
+{
+	if (!HasAuthority()) return;
+	Rep_AccelAxis = FMath::Clamp(Axis, -1.f, 1.f);
+}
+
+void ABFCartPawn::SetSteerAxis_Server(float Axis)
+{
+	if (!HasAuthority()) return;
+	Rep_SteerAxis = FMath::Clamp(Axis, -1.f, 1.f);
 }
 
 void ABFCartPawn::OnSteeringEnded(const FInputActionValue& Value)
 {
-	if (!IsLocallyControlled()) return;
 	Server_SetSteeringAxis(0.f);
-}
-
-void ABFCartPawn::OnMouseLook(const FInputActionValue& Value)
-{
-	if (!IsLocallyControlled())
-	{
-		return;
-	}
-
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!PC || !PC->IsLocalController())
-	{
-		return;
-	}
-
-	const FVector2D LookAxis = Value.Get<FVector2D>();
-	const float LookX = LookAxis.X;
-	const float LookY = LookAxis.Y;
-
-	FRotator ControlRot = PC->GetControlRotation();
-
-	ControlRot.Yaw   += LookX;
-	ControlRot.Pitch += LookY;
-
-	PC->SetControlRotation(ControlRot);
-
-	// 입력이 있을 때도 즉시 범위 보정
-	HardClampControlRotation();
-}
-
-void ABFCartPawn::HardClampControlRotation()
-{
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!PC || !PC->IsLocalController()) return;
-
-	const FRotator Original = PC->GetControlRotation();
-	FRotator Clamped = Original;
-
-	Clamped.Pitch = FMath::Clamp(Clamped.Pitch, -90.f, 90.f);
-
-	const float ActorYaw = GetActorRotation().Yaw;
-	float OffsetYaw = FMath::FindDeltaAngleDegrees(ActorYaw, Clamped.Yaw);
-	OffsetYaw = FMath::Clamp(OffsetYaw, -90.f, 90.f);
-	Clamped.Yaw = ActorYaw + OffsetYaw;
-
-	Clamped.Roll = 0.f;
-
-	// 거의 동일하면 불필요한 Set 방지
-	if (!Original.Equals(Clamped, 0.01f))
-	{
-		PC->SetControlRotation(Clamped);
-	}
 }
 
 bool ABFCartPawn::Server_SetAccelerationAxis_Validate(float Axis) { return FMath::IsFinite(Axis) && FMath::Abs(Axis) <= 1.1f; }
@@ -339,11 +274,11 @@ void ABFCartPawn::AccelerateCart() const
 		CurrentDownForce.Z = DownForce;
 	}
 
-	const FVector Force =
+	const FVector Speed =
 		CartForward * CartMass * Rep_AccelerationInput * CartSpeed * SpeedModifier
 		+ CurrentDownForce;
 
-	Root->AddForceAtLocation(Force, Root->GetComponentLocation());
+	Root->AddForceAtLocation(Speed, Root->GetComponentLocation());
 }
 
 void ABFCartPawn::RotateMeshes(float DeltaSeconds)

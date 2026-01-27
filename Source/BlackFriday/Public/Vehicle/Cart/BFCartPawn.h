@@ -6,6 +6,7 @@
 #include "Net/UnrealNetwork.h"
 #include "BFCartPawn.generated.h"
 
+class USphereComponent;
 class UInputAction;
 class UInputMappingContext;
 class UBoxComponent;
@@ -21,25 +22,39 @@ public:
 	ABFCartPawn();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	
+	// ----- Getter/Setter -----
+	USceneComponent* GetPusherStandAnkerComponent() const;
+	
+	UFUNCTION(BlueprintCallable)
+	FTransform GetHandleLTransform() const;
+	
+	UFUNCTION(BlueprintCallable)
+	FTransform GetHandleRTransform() const;
+
+	UFUNCTION(BlueprintCallable)
+	float GetAcceleration() const;
+	
+	UFUNCTION(BlueprintCallable)
+	FVector GetCurrentVelocity() const;
+	
+	// ✅ 서버에서만 호출되는 입력축 세터(컴포넌트/서버 코드용)
+	void SetAccelAxis_Server(float Axis);
+	void SetSteerAxis_Server(float Axis);
+	
+	// 입력 처리
+	void SetAccelerationInput(const FInputActionValue& Value);
+	void OnAccelerationEnded(const FInputActionValue& Value);
+	void SteerCart(const FInputActionValue& Value);
+	void OnSteeringEnded(const FInputActionValue& Value);
 
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
-	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	// ----- Physics / Movement -----
 	void SuspensionCast(USceneComponent* WheelComp) const;
 	bool IsOnGround() const;
-
-	// 입력 처리(로컬)
-	void SetAccelerationInput(const FInputActionValue& Value);
-	void SteerCart(const FInputActionValue& Value);
-	void OnAccelerationEnded(const FInputActionValue& Value);
-	void OnSteeringEnded(const FInputActionValue& Value);
-	void OnMouseLook(const FInputActionValue& Value);
-	
-	// 카메라(로컬)
-	void HardClampControlRotation();
 
 	// 서버에서만 호출되는 물리 적용 루틴
 	void ServerSimTick(float DeltaSeconds);
@@ -103,6 +118,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category="BF|Movement")
 	float CartSpeed = 10000.0f;
+	
+	FVector CurrentVelocity = FVector(0.0, 0.0, 0.0);
+	
+	// 클라이언트(AnimInstance/코스메틱)에서 사용할 가속도 캐시
+	UPROPERTY(BlueprintReadOnly, Category="Cart|Anim", Transient)
+	float Acceleration = 0.0f;
 
 	// ----- Input -----
 	UPROPERTY(EditDefaultsOnly, Category = "BF|Input")
@@ -165,4 +186,13 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly)
 	TObjectPtr<UStaticMeshComponent> CasterForkBLMesh;
+	
+	UPROPERTY(EditAnywhere)
+	TObjectPtr<USceneComponent> PusherStandAnker;
+	
+	UPROPERTY(EditAnywhere)
+	TObjectPtr<USceneComponent> HandleL;
+	
+	UPROPERTY(EditAnywhere)
+	TObjectPtr<USceneComponent> HandleR;
 };
