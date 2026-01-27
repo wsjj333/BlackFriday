@@ -18,7 +18,7 @@ void UBFNetworkPhysicsComponent::ApplyOwnerReconcile(float DeltaTime)
 
     if (Dist < OwnerDeadZone) return;
 
-    if (Dist >OwnerTeleportDist)
+    if (Dist > OwnerTeleportDist)
     {
         Prim->SetWorldLocation(ServerPos, false, nullptr, ETeleportType::TeleportPhysics);
         Prim->SetPhysicsLinearVelocity(ServerVel);

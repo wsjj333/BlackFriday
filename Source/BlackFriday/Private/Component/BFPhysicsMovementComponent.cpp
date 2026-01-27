@@ -43,7 +43,7 @@ void UBFPhysicsMovementComponent::BeginPlay()
 		Prim->OnComponentHit.AddDynamic(this, &UBFPhysicsMovementComponent::OnComponentHit);
 	}
 
-	if (auto* NetComp = GetOwner()->FindComponentByClass<UBFNetworkPhysicsComponent>())
+	if (UBFNetworkPhysicsComponent* NetComp = GetOwner()->FindComponentByClass<UBFNetworkPhysicsComponent>())
 	{
 		AddTickPrerequisiteComponent(NetComp);
 	}
@@ -226,7 +226,7 @@ void UBFPhysicsMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
 	if (GetOwner() && GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		FVector TargetVel = FVector::ZeroVector;
-		if (auto* NetComp = GetOwner()->FindComponentByClass<UBFNetworkPhysicsComponent>())
+		if (UBFNetworkPhysicsComponent* NetComp = GetOwner()->FindComponentByClass<UBFNetworkPhysicsComponent>())
 		{
 			TargetVel = NetComp->GetReplicatedVelocity();
 		}

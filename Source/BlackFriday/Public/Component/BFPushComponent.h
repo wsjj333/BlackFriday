@@ -7,7 +7,7 @@
 #include "BFPushComponent.generated.h"
 
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS(ClassGroup=(BF), meta=(BlueprintSpawnableComponent))
 class BLACKFRIDAY_API UBFPushComponent : public UActorComponent
 {
 	GENERATED_BODY()

@@ -24,7 +24,7 @@ void UBFSessionSubsystem::CreateSession(int32 InMaxPlayers, bool bInIsLAN)
         return;
     }
 
-    auto ExistingSession = SessionInterface->GetNamedSession(NAME_GameSession);
+    FNamedOnlineSession* ExistingSession = SessionInterface->GetNamedSession(NAME_GameSession);
     if (ExistingSession != nullptr)
     {
         SessionInterface->DestroySession(NAME_GameSession);

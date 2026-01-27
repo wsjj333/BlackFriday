@@ -1,5 +1,4 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-// Source/BlackFriday/Public/Systems/BFSessionSubsystem.h
 
 #pragma once
 

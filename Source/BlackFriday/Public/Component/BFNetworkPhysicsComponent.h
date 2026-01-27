@@ -141,6 +141,7 @@ private:
 	
 	void ApplyRemoteSmoothing(float DeltaTime);
 	void ApplyOwnerReconcile(float DeltaTime);
+	void ApplyStateWithTeleportCheck(const FBFPhysicsState& NewState);
 
 	float InputSendAccum = 0.f;
 	float OwnerStateSendAccum = 0.f;

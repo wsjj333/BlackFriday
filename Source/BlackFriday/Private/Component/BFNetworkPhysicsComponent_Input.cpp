@@ -9,18 +9,21 @@ void UBFNetworkPhysicsComponent::SetJumpHeld(bool bHeld) { bLocalJumpHeld = bHel
 
 FBFMoveInputNet UBFNetworkPhysicsComponent::BuildInputPacket() const
 {
-	FBFMoveInputNet In;
-	In.MoveX = (int16)(FMath::Clamp(LocalMove.X, -1.f, 1.f) * 32767.f);
-	In.MoveY = (int16)(FMath::Clamp(LocalMove.Y, -1.f, 1.f) * 32767.f);
-	In.ControlYaw100 = (int16)(FRotator::NormalizeAxis(LocalYaw) * 100.f);
-	if (bLocalJumpHeld || bJumpHoldLatched) In.Buttons |= 0x01;
-	In.ClientFrame = ClientFrameCounter;
-	return In;
+	FBFMoveInputNet Packet;
+	Packet.MoveX = (int16)(FMath::Clamp(LocalMove.X, -1.f, 1.f) * 32767.f);
+	Packet.MoveY = (int16)(FMath::Clamp(LocalMove.Y, -1.f, 1.f) * 32767.f);
+	Packet.ControlYaw100 = (int16)(FRotator::NormalizeAxis(LocalYaw) * 100.f);
+	if (bLocalJumpHeld || bJumpHoldLatched) Packet.Buttons |= 0x01;
+	Packet.ClientFrame = ClientFrameCounter;
+	return Packet;
 }
 
-static bool IsNewerFrame(uint16 A, uint16 B)
+namespace
 {
-	return (uint16)(A - B) < 32768;
+	bool IsNewerFrame(uint16 A, uint16 B)
+	{
+		return (uint16)(A - B) < 32768;
+	}
 }
 
 void UBFNetworkPhysicsComponent::ServerReceiveInput_Implementation(FBFMoveInputNet Input)
@@ -80,12 +83,12 @@ FVector UBFNetworkPhysicsComponent::GetReplicatedVelocity() const
 	return (FVector)RepState.LinVel;
 }
 
-void UBFNetworkPhysicsComponent::OnRep_PhysicsState()
+void UBFNetworkPhysicsComponent::ApplyStateWithTeleportCheck(const FBFPhysicsState& NewState)
 {
 	PrevState = TargetState;
-	TargetState = RepState;
+	TargetState = NewState;
 	SmoothAlpha = 0.f;
-	
+
 	if (Prim)
 	{
 		float DistSq = FVector::DistSquared((FVector)TargetState.Pos, Prim->GetComponentLocation());
@@ -97,6 +100,11 @@ void UBFNetworkPhysicsComponent::OnRep_PhysicsState()
 	}
 }
 
+void UBFNetworkPhysicsComponent::OnRep_PhysicsState()
+{
+	ApplyStateWithTeleportCheck(RepState);
+}
+
 void UBFNetworkPhysicsComponent::OnRep_PhysicsStateOwner()
 {
 	bHasOwnerState = true;
@@ -104,18 +112,6 @@ void UBFNetworkPhysicsComponent::OnRep_PhysicsStateOwner()
 
 	if (!bUseClientPrediction)
 	{
-		PrevState = TargetState;
-		TargetState = RepStateOwner;
-		SmoothAlpha = 0.f;
-		if (Prim)
-		{
-			float DistSq = FVector::DistSquared((FVector)TargetState.Pos, Prim->GetComponentLocation());
-			
-			if (DistSq > TeleportDist * TeleportDist)
-			{
-				Prim->SetWorldLocationAndRotation((FVector)TargetState.Pos, TargetState.Rot, false, nullptr, ETeleportType::TeleportPhysics);
-				SmoothAlpha = 1.0f;
-			}
-		}
+		ApplyStateWithTeleportCheck(RepStateOwner);
 	}
 }
