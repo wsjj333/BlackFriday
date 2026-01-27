@@ -124,29 +124,6 @@ void ABFCartPawn::BeginPlay()
 	}
 }
 
-// void ABFCartPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-// {
-// 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-//
-// 	// 소유 클라이언트만 바인딩
-// 	if (!IsLocallyControlled())
-// 	{
-// 		return;
-// 	}
-//
-// 	UEnhancedInputComponent* EnhancedInput = CastChecked<UEnhancedInputComponent>(PlayerInputComponent);
-//
-// 	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Triggered, this, &ABFCartPawn::SetAccelerationInput);
-// 	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Completed, this, &ABFCartPawn::OnAccelerationEnded);
-// 	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Canceled,  this, &ABFCartPawn::OnAccelerationEnded);
-// 	
-// 	EnhancedInput->BindAction(SteeringAction,     ETriggerEvent::Triggered, this, &ABFCartPawn::SteerCart);
-// 	EnhancedInput->BindAction(SteeringAction,     ETriggerEvent::Completed, this, &ABFCartPawn::OnSteeringEnded);
-// 	EnhancedInput->BindAction(SteeringAction,     ETriggerEvent::Canceled,  this, &ABFCartPawn::OnSteeringEnded);
-// 	
-// 	EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABFCartPawn::OnMouseLook);
-// }
-
 void ABFCartPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -216,62 +193,22 @@ FVector ABFCartPawn::GetCurrentVelocity() const
 	return CurrentVelocity;
 }
 
+void ABFCartPawn::SetAccelAxis_Server(float Axis)
+{
+	if (!HasAuthority()) return;
+	Rep_AccelAxis = FMath::Clamp(Axis, -1.f, 1.f);
+}
+
+void ABFCartPawn::SetSteerAxis_Server(float Axis)
+{
+	if (!HasAuthority()) return;
+	Rep_SteerAxis = FMath::Clamp(Axis, -1.f, 1.f);
+}
+
 void ABFCartPawn::OnSteeringEnded(const FInputActionValue& Value)
 {
 	Server_SetSteeringAxis(0.f);
 }
-
-// void ABFCartPawn::OnMouseLook(const FInputActionValue& Value)
-// {
-// 	if (!IsLocallyControlled())
-// 	{
-// 		return;
-// 	}
-//
-// 	APlayerController* PC = Cast<APlayerController>(GetController());
-// 	if (!PC || !PC->IsLocalController())
-// 	{
-// 		return;
-// 	}
-//
-// 	const FVector2D LookAxis = Value.Get<FVector2D>();
-// 	const float LookX = LookAxis.X;
-// 	const float LookY = LookAxis.Y;
-//
-// 	FRotator ControlRot = PC->GetControlRotation();
-//
-// 	ControlRot.Yaw   += LookX;
-// 	ControlRot.Pitch += LookY;
-//
-// 	PC->SetControlRotation(ControlRot);
-//
-// 	// 입력이 있을 때도 즉시 범위 보정
-// 	HardClampControlRotation();
-// }
-
-// void ABFCartPawn::HardClampControlRotation()
-// {
-// 	APlayerController* PC = Cast<APlayerController>(GetController());
-// 	if (!PC || !PC->IsLocalController()) return;
-//
-// 	const FRotator Original = PC->GetControlRotation();
-// 	FRotator Clamped = Original;
-//
-// 	Clamped.Pitch = FMath::Clamp(Clamped.Pitch, -90.f, 90.f);
-//
-// 	const float ActorYaw = GetActorRotation().Yaw;
-// 	float OffsetYaw = FMath::FindDeltaAngleDegrees(ActorYaw, Clamped.Yaw);
-// 	OffsetYaw = FMath::Clamp(OffsetYaw, -90.f, 90.f);
-// 	Clamped.Yaw = ActorYaw + OffsetYaw;
-//
-// 	Clamped.Roll = 0.f;
-//
-// 	// 거의 동일하면 불필요한 Set 방지
-// 	if (!Original.Equals(Clamped, 0.01f))
-// 	{
-// 		PC->SetControlRotation(Clamped);
-// 	}
-// }
 
 bool ABFCartPawn::Server_SetAccelerationAxis_Validate(float Axis) { return FMath::IsFinite(Axis) && FMath::Abs(Axis) <= 1.1f; }
 void ABFCartPawn::Server_SetAccelerationAxis_Implementation(float Axis)

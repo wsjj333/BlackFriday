@@ -38,6 +38,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	FVector GetCurrentVelocity() const;
 	
+	// ✅ 서버에서만 호출되는 입력축 세터(컴포넌트/서버 코드용)
+	void SetAccelAxis_Server(float Axis);
+	void SetSteerAxis_Server(float Axis);
+	
 	// 입력 처리
 	void SetAccelerationInput(const FInputActionValue& Value);
 	void OnAccelerationEnded(const FInputActionValue& Value);
