@@ -59,29 +59,29 @@ ABFCartPawn::ABFCartPawn()
 
 	WheelBLMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WheelBLMesh"));
 	WheelBLMesh->SetupAttachment(WheelBLComp);
-	
+
 	CasterForkFRMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CasterForkFRMesh"));
 	CasterForkFRMesh->SetupAttachment(Pivot);
-	CasterForkFRMesh->SetRelativeLocation(FVector(43.977692,13.037226,18.197203));
-	
+	CasterForkFRMesh->SetRelativeLocation(FVector(43.977692, 13.037226, 18.197203));
+
 	CasterForkFLMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CasterForkFLMesh"));
 	CasterForkFLMesh->SetupAttachment(Pivot);
-	CasterForkFLMesh->SetRelativeLocation(FVector(43.977692,-13.037030,18.197218));
-	
+	CasterForkFLMesh->SetRelativeLocation(FVector(43.977692, -13.037030, 18.197218));
+
 	CasterForkBRMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CasterForkBRMesh"));
 	CasterForkBRMesh->SetupAttachment(Pivot);
-	CasterForkBRMesh->SetRelativeLocation(FVector(-31.720028,26.393049,18.197172));
-	
+	CasterForkBRMesh->SetRelativeLocation(FVector(-31.720028, 26.393049, 18.197172));
+
 	CasterForkBLMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CasterForkBLMesh"));
 	CasterForkBLMesh->SetupAttachment(Pivot);
-	CasterForkBLMesh->SetRelativeLocation(FVector(-31.720029,-26.392992,18.197203));
-	
+	CasterForkBLMesh->SetRelativeLocation(FVector(-31.720029, -26.392992, 18.197203));
+
 	PusherStandAnker = CreateDefaultSubobject<USceneComponent>(TEXT("PusherStandAnker"));
 	PusherStandAnker->SetupAttachment(Pivot);
-	
+
 	HandleL = CreateDefaultSubobject<USceneComponent>(TEXT("HandleL"));
 	HandleL->SetupAttachment(CartHandle);
-	
+
 	HandleR = CreateDefaultSubobject<USceneComponent>(TEXT("HandleR"));
 	HandleR->SetupAttachment(CartHandle);
 }
@@ -117,7 +117,7 @@ FTransform ABFCartPawn::GetHandleRTransform() const
 void ABFCartPawn::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	if (HasAuthority())
 	{
 		SetReplicateMovement(true);
@@ -127,13 +127,13 @@ void ABFCartPawn::BeginPlay()
 void ABFCartPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	
+
 	if (HasAuthority())
 	{
 		// “물리”는 서버에서만
 		ServerSimTick(DeltaSeconds);
 	}
-	
+
 	Acceleration = Rep_Acceleration;
 	CurrentVelocity = Root->GetPhysicsLinearVelocity();
 
@@ -166,23 +166,6 @@ void ABFCartPawn::ServerSimTick(float DeltaSeconds)
 	Root->AddTorqueInRadians(FVector(0.f, 0.f, TorqueZ));
 }
 
-void ABFCartPawn::SetAccelerationInput(const FInputActionValue& Value)
-{
-	const float Axis = Value.Get<float>();
-	Server_SetAccelerationAxis(Axis);
-}
-
-void ABFCartPawn::SteerCart(const FInputActionValue& Value)
-{
-	const float Axis = Value.Get<float>();
-	Server_SetSteeringAxis(Axis);
-}
-
-void ABFCartPawn::OnAccelerationEnded(const FInputActionValue& Value)
-{
-	Server_SetAccelerationAxis(0.f);
-}
-
 float ABFCartPawn::GetAcceleration() const
 {
 	return Acceleration;
@@ -202,24 +185,8 @@ void ABFCartPawn::SetAccelAxis_Server(float Axis)
 void ABFCartPawn::SetSteerAxis_Server(float Axis)
 {
 	if (!HasAuthority()) return;
-	Rep_SteerAxis = FMath::Clamp(Axis, -1.f, 1.f);
-}
-
-void ABFCartPawn::OnSteeringEnded(const FInputActionValue& Value)
-{
-	Server_SetSteeringAxis(0.f);
-}
-
-bool ABFCartPawn::Server_SetAccelerationAxis_Validate(float Axis) { return FMath::IsFinite(Axis) && FMath::Abs(Axis) <= 1.1f; }
-void ABFCartPawn::Server_SetAccelerationAxis_Implementation(float Axis)
-{
-	Rep_AccelAxis = FMath::Clamp(Axis, -1.f, 1.f);
-}
-
-bool ABFCartPawn::Server_SetSteeringAxis_Validate(float Axis) { return FMath::IsFinite(Axis) && FMath::Abs(Axis) <= 1.1f; }
-void ABFCartPawn::Server_SetSteeringAxis_Implementation(float Axis)
-{
-	Rep_SteerAxis = FMath::Clamp(Axis, -1.f, 1.f);
+	Rep_SteerAxis = Axis; 
+	// Rep_SteerAxis = FMath::Max(Rep_DriftSteer, FMath::Abs(Axis)) * FMath::Sign(Rep_DriftRotation.Yaw);
 }
 
 void ABFCartPawn::SuspensionCast(USceneComponent* WheelComp) const
@@ -227,7 +194,7 @@ void ABFCartPawn::SuspensionCast(USceneComponent* WheelComp) const
 	FHitResult HitResult;
 
 	const FVector Start = WheelComp->GetComponentLocation();
-	const FVector End   = Start + WheelComp->GetUpVector() * -WheelRadius;
+	const FVector End = Start + WheelComp->GetUpVector() * -WheelRadius;
 
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(this);
@@ -245,7 +212,7 @@ void ABFCartPawn::SuspensionCast(USceneComponent* WheelComp) const
 	}
 
 	const float HitDistance = HitResult.Distance;
-	const float Normalized  = FMath::GetRangePct(0.0f, WheelRadius, HitDistance);
+	const float Normalized = FMath::GetRangePct(0.0f, WheelRadius, HitDistance);
 
 	const FVector UnitDirection = (HitResult.TraceStart - HitResult.TraceEnd).GetSafeNormal();
 	const FVector Force = (1.0f - Normalized) * UnitDirection * SuspensionForceMultiplier;
@@ -292,10 +259,12 @@ void ABFCartPawn::RotateMeshes(float DeltaSeconds)
 	WheelBRMesh->AddLocalRotation(WheelRotator);
 
 	// 드리프트 회전(현재 로직은 비어있어서 Rep_DriftRotation은 기본값일 것)
-	const FRotator NewPivotRotation = FMath::RInterpTo(Pivot->GetRelativeRotation(), Rep_DriftRotation, DeltaSeconds, 3.0f);
+	const FRotator NewPivotRotation = FMath::RInterpTo(Pivot->GetRelativeRotation(), Rep_DriftRotation, DeltaSeconds,
+	                                                   3.0f);
 	Pivot->SetRelativeRotation(NewPivotRotation);
 
-	const FRotator NewBodyRotation  = FMath::RInterpTo(CartBody->GetRelativeRotation(), Rep_DriftRotation, DeltaSeconds, 3.0f);
+	const FRotator NewBodyRotation = FMath::RInterpTo(CartBody->GetRelativeRotation(), Rep_DriftRotation, DeltaSeconds,
+	                                                  3.0f);
 	CartBody->SetRelativeRotation(NewBodyRotation);
 }
 
@@ -304,7 +273,7 @@ bool ABFCartPawn::IsOnGround() const
 	FHitResult HitResult;
 
 	const FVector Start = GetActorLocation();
-	const FVector End   = Start - GroundTraceEnd;
+	const FVector End = Start - GroundTraceEnd;
 
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(this);

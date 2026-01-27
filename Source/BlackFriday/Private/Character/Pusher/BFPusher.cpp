@@ -120,9 +120,8 @@ void ABFPusher::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Completed, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_AccelEnded);
 	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Canceled, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_AccelEnded);
 
-
-	// 스티어링 액션이 별도로 있다면 여기서 바인딩(현재 코드엔 선언만 있고 바인딩이 없음)
-	// EnhancedInput->BindAction(SteerAction, ...);
+	EnhancedInput->BindAction(SteerAction, ETriggerEvent::Triggered, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_SteerTriggered);
+	EnhancedInput->BindAction(SteerAction, ETriggerEvent::Completed, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_SteerEnded);
 }
 
 void ABFPusher::HandleMoveInput(const FInputActionValue& Value)
@@ -145,38 +144,6 @@ void ABFPusher::HandleMoveInput(const FInputActionValue& Value)
 
 	WorldDirection = UKismetMathLibrary::GetForwardVector(RotForMove);
 	AddMovementInput(WorldDirection, MoveY);
-}
-
-void ABFPusher::OnMoveEnded(const FInputActionValue& Value)
-{
-	if (!bIsDriving || !Cart || !IsLocallyControlled())
-	{
-		return;
-	}
-
-	Cart->OnAccelerationEnded(Value); // 내부에서 Server RPC
-}
-
-void ABFPusher::OnAccelerationPressed(const FInputActionValue& Value)
-{
-	// 주의: 드라이빙 중에는 Cart 입력만
-	if (bIsDriving)
-	{
-		if (!Cart)
-		{
-			return;
-		}
-
-		// 로컬 소유자만 호출 -> Cart 내부에서 Server_SetAccelerationAxis RPC를 실행
-		if (IsLocallyControlled())
-		{
-			Cart->SetAccelerationInput(Value);
-		}
-	}
-}
-
-void ABFPusher::ApplyDrivingState_Local(bool bDriving)
-{
 }
 
 void ABFPusher::HandleLookInput(const FInputActionValue& Value)
