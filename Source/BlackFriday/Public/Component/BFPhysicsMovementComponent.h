@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PawnMovementComponent.h"
+#include "PhysicsEngine/PhysicalAnimationComponent.h"
 #include "BFPhysicsNetTypes.h"
 #include "BFPhysicsMovementComponent.generated.h"
 
@@ -67,6 +68,25 @@ public:
 	UPROPERTY(EditAnywhere, Category="BF|Ground")
 	float GroundedDotThreshold = 0.6f;
 
+	// 상체 물리 (흐느적거림)
+	UPROPERTY(EditAnywhere, Category="BF|PhysicalAnimation")
+	bool bEnableUpperBodyPhysics = false;
+
+	UPROPERTY(EditAnywhere, Category="BF|PhysicalAnimation")
+	FName UpperBodyBoneName = TEXT("spine_02");
+
+	UPROPERTY(EditAnywhere, Category="BF|PhysicalAnimation")
+	float OrientationStrength = 1000.f;
+
+	UPROPERTY(EditAnywhere, Category="BF|PhysicalAnimation")
+	float AngularVelocityStrength = 100.f;
+
+	UPROPERTY(EditAnywhere, Category="BF|PhysicalAnimation")
+	float PositionStrength = 1000.f;
+
+	UPROPERTY(EditAnywhere, Category="BF|PhysicalAnimation")
+	float VelocityStrength = 100.f;
+
 	// 현재 바닥 상태
 	UPROPERTY(BlueprintReadOnly, Category="BF|Ground")
 	bool bGrounded = false;
@@ -85,7 +105,14 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UPrimitiveComponent> Prim = nullptr;
 
+	UPROPERTY(Transient)
+	TObjectPtr<USkeletalMeshComponent> CachedMesh = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPhysicalAnimationComponent> PhysicalAnimationComp = nullptr;
+
 	void CachePrimitive();
+	void SetupUpperBodyPhysics();
 
 private:
 	float MoveX = 0.f;

@@ -82,3 +82,8 @@ Content/BlueSky/*
 Content/Hyper-Casual_Character_Pack/*
 Content/Megastore/*
 Content/Sphere_Drone/*
+/.ignore
+/BlackFriday.code-workspace
+/.vscode
+/.clang-format
+/.clangd

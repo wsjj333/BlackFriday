@@ -26,14 +26,14 @@ void UBFPhysicsMovementComponent::BeginPlay()
 
 	if (AActor* Owner = GetOwner())
 	{
-		USkeletalMeshComponent* Mesh = Owner->FindComponentByClass<USkeletalMeshComponent>();
-		
-		if (Mesh && Prim)
+		CachedMesh = Owner->FindComponentByClass<USkeletalMeshComponent>();
+
+		if (CachedMesh && Prim)
 		{
-			Mesh->SetSimulatePhysics(false);
-			Mesh->SetAllBodiesSimulatePhysics(false);
-			Mesh->SetCollisionProfileName(TEXT("NoCollision"));
-			Mesh->AttachToComponent(Prim, FAttachmentTransformRules::SnapToTargetIncludingScale);
+			CachedMesh->SetSimulatePhysics(false);
+			CachedMesh->SetAllBodiesSimulatePhysics(false);
+			CachedMesh->SetCollisionProfileName(TEXT("NoCollision"));
+			CachedMesh->AttachToComponent(Prim, FAttachmentTransformRules::SnapToTargetIncludingScale);
 		}
 	}
 
@@ -47,15 +47,18 @@ void UBFPhysicsMovementComponent::BeginPlay()
 	{
 		AddTickPrerequisiteComponent(NetComp);
 	}
-	
+
 	if (Prim && Prim->GetBodyInstance())
 	{
 		FBodyInstance* BI = Prim->GetBodyInstance();
 		BI->SetUseCCD(true);
-		
+
 		BI->PositionSolverIterationCount = 8;
-		BI->VelocitySolverIterationCount = 2; 
+		BI->VelocitySolverIterationCount = 2;
 	}
+
+	// 상체 물리 설정
+	SetupUpperBodyPhysics();
 }
 
 void UBFPhysicsMovementComponent::CachePrimitive()

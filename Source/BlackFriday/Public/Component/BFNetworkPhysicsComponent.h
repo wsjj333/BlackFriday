@@ -53,9 +53,6 @@ public:
 
 	// 서버 상태 전송
 	UPROPERTY(EditAnywhere, Category="BF|Net")
-	float StateSendHz = 120.f;
-
-	UPROPERTY(EditAnywhere, Category="BF|Net")
 	float OwnerStateSendHz = 120.f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Net")

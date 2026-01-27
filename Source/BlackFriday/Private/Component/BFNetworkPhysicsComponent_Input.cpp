@@ -50,6 +50,26 @@ void UBFNetworkPhysicsComponent::ServerReceiveInput_Implementation(FBFMoveInputN
 
 bool UBFNetworkPhysicsComponent::ServerReceiveInput_Validate(FBFMoveInputNet Input)
 {
+	// 정의되지 않은 버튼 플래그 체크 (현재 0x01만 유효)
+	constexpr uint8 ValidButtonMask = 0x01;
+	if (Input.Buttons & ~ValidButtonMask)
+	{
+		return false;
+	}
+
+	// 입력 축 범위 체크 (-32767 ~ 32767)
+	if (Input.MoveX < -32767 || Input.MoveX > 32767 ||
+		Input.MoveY < -32767 || Input.MoveY > 32767)
+	{
+		return false;
+	}
+
+	// Yaw 범위 체크 (-18000 ~ 18000, 즉 -180도 ~ 180도)
+	if (Input.ControlYaw100 < -18000 || Input.ControlYaw100 > 18000)
+	{
+		return false;
+	}
+
 	return true;
 }
 

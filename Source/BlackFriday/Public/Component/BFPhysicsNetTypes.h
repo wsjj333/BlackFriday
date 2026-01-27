@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/Engine.h"
 #include "BFPhysicsNetTypes.generated.h"
 
 USTRUCT(BlueprintType)
