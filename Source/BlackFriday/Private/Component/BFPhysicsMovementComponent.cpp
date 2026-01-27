@@ -30,10 +30,10 @@ void UBFPhysicsMovementComponent::BeginPlay()
 
 		if (CachedMesh && Prim)
 		{
-			CachedMesh->SetSimulatePhysics(false);
-			CachedMesh->SetAllBodiesSimulatePhysics(false);
-			CachedMesh->SetCollisionProfileName(TEXT("NoCollision"));
-			CachedMesh->AttachToComponent(Prim, FAttachmentTransformRules::SnapToTargetIncludingScale);
+			//CachedMesh->SetSimulatePhysics(false);
+			//CachedMesh->SetAllBodiesSimulatePhysics(false);
+			//CachedMesh->SetCollisionProfileName(TEXT("NoCollision"));
+			//CachedMesh->AttachToComponent(Prim, FAttachmentTransformRules::SnapToTargetIncludingScale);
 		}
 	}
 
@@ -48,17 +48,17 @@ void UBFPhysicsMovementComponent::BeginPlay()
 		AddTickPrerequisiteComponent(NetComp);
 	}
 
-	if (Prim && Prim->GetBodyInstance())
+	/*if (Prim && Prim->GetBodyInstance())
 	{
 		FBodyInstance* BI = Prim->GetBodyInstance();
 		BI->SetUseCCD(true);
 
 		BI->PositionSolverIterationCount = 8;
 		BI->VelocitySolverIterationCount = 2;
-	}
+	}*/
 
 	// 상체 물리 설정
-	SetupUpperBodyPhysics();
+	//SetupUpperBodyPhysics();
 }
 
 void UBFPhysicsMovementComponent::CachePrimitive()
