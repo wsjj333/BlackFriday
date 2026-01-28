@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InputActionValue.h"
+// #include "InputActionValue.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
 #include "BFCartPawn.generated.h"
@@ -43,10 +43,10 @@ public:
 	void SetSteerAxis_Server(float Axis);
 	
 	// 입력 처리
-	void SetAccelerationInput(const FInputActionValue& Value);
-	void OnAccelerationEnded(const FInputActionValue& Value);
-	void SteerCart(const FInputActionValue& Value);
-	void OnSteeringEnded(const FInputActionValue& Value);
+	// void SetAccelerationInput(const FInputActionValue& Value);
+	// void OnAccelerationEnded(const FInputActionValue& Value);
+	// void SteerCart(const FInputActionValue& Value);
+	// void OnSteeringEnded(const FInputActionValue& Value);
 
 protected:
 	virtual void BeginPlay() override;
@@ -65,11 +65,11 @@ protected:
 	void RotateMeshes(float DeltaSeconds);
 
 	// ----- RPCs -----
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_SetAccelerationAxis(float Axis);
-
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_SetSteeringAxis(float Axis);
+	// UFUNCTION(Server, Reliable, WithValidation)
+	// void Server_SetAccelerationAxis(float Axis);
+	//
+	// UFUNCTION(Server, Reliable, WithValidation)
+	// void Server_SetSteeringAxis(float Axis);
 
 	// ----- Replicated State -----
 	// “플레이어가 누르고 있는” 입력축 (서버 권한)
@@ -99,7 +99,7 @@ protected:
 	float DownForce = -4900000.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category="BF|Movement")
-	double SteeringTorque = 90000000.0f;
+	double SteeringTorque = 1500000.0f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Movement")
 	float SteeringMultiplier = 2.0f;

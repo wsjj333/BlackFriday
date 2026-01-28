@@ -88,7 +88,5 @@ void UBFCartMovementComponent::Server_SetCartAccelerationAxis_Implementation(flo
 void UBFCartMovementComponent::Server_SetCartSteeringAxis_Implementation(float Axis)
 {
 	if (!Cart.IsValid()) return;
-
-	Axis = FMath::Clamp(Axis, -1.f, 1.f);
 	Cart->SetSteerAxis_Server(Axis);
 }
