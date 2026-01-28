@@ -99,7 +99,7 @@ protected:
 	void OnJumpReleased(const FInputActionValue& Value);
 	void OnToggleDriveModePressed(const FInputActionValue& Value);
 
-	void ApplyDrivingState_Local(bool bDriving);
+	//void ApplyDrivingState_Local(bool bDriving);
 	void HardClampControlRotation();
 	void RefreshAnimInstanceCache();
 

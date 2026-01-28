@@ -335,7 +335,7 @@ void ABFPusher::OnRep_Cart()
 
 void ABFPusher::OnRep_IsDriving()
 {
-	ApplyDrivingState_Local(bIsDriving);
+	//ApplyDrivingState_Local(bIsDriving);
 
 	if (CartDrivingComp)
 	{
