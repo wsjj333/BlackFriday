@@ -97,6 +97,7 @@ void ABFCartPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ABFCartPawn, Rep_Acceleration);
 	DOREPLIFETIME(ABFCartPawn, Rep_DriftSteer);
 	DOREPLIFETIME(ABFCartPawn, Rep_DriftRotation);
+	DOREPLIFETIME(ABFCartPawn, Rep_SteeringMultiplier);
 }
 
 USceneComponent* ABFCartPawn::GetPusherStandAnkerComponent() const
@@ -162,7 +163,8 @@ void ABFCartPawn::ServerSimTick(float DeltaSeconds)
 	CalculateAcceleration(DeltaSeconds);
 
 	// 토크 적용(서버만)
-	const double TorqueZ = Rep_DriftSteer * SteeringTorque * Rep_AccelerationInput * SteeringMultiplier;
+	const double TorqueZ = Rep_DriftSteer * SteeringTorque * Rep_AccelerationInput * Rep_SteeringMultiplier;
+	UE_LOG(LogTemp, Warning, TEXT("Rep_DriftSteer: %f | Rep_SteeringMultiplier: %f | TorqueZ: %lf"), Rep_DriftSteer, Rep_SteeringMultiplier, TorqueZ);
 	Root->AddTorqueInRadians(FVector(0.f, 0.f, TorqueZ));
 }
 
@@ -185,8 +187,19 @@ void ABFCartPawn::SetAccelAxis_Server(float Axis)
 void ABFCartPawn::SetSteerAxis_Server(float Axis)
 {
 	if (!HasAuthority()) return;
-	Rep_SteerAxis = Axis; 
-	// Rep_SteerAxis = FMath::Max(Rep_DriftSteer, FMath::Abs(Axis)) * FMath::Sign(Rep_DriftRotation.Yaw);
+	
+	// TODO: 매직넘버 수정(25도 회전을 의도함)
+	Rep_DriftRotation.Yaw = FMath::Sign(Axis) * 25.0f;
+	
+	Rep_SteerAxis = Rep_SteeringMultiplier == 2.0f 
+	? Axis
+	: FMath::Max(Rep_DriftSteer, FMath::Abs(Axis)) * FMath::Sign(Rep_DriftRotation.Yaw);
+}
+
+void ABFCartPawn::SetSteeringMultiplier_Server(const float Multiplier)
+{
+	if (!HasAuthority()) return;
+	Rep_SteeringMultiplier = Multiplier;
 }
 
 void ABFCartPawn::SuspensionCast(USceneComponent* WheelComp) const

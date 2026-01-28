@@ -75,6 +75,9 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
 	TObjectPtr<UInputAction> SteerAction;
+	
+	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
+	TObjectPtr<UInputAction> DriftAction;
 
 	// ----- Drive Mode -----
 	UPROPERTY(ReplicatedUsing=OnRep_Cart)
@@ -99,7 +102,7 @@ protected:
 	void OnJumpReleased(const FInputActionValue& Value);
 	void OnToggleDriveModePressed(const FInputActionValue& Value);
 
-	void ApplyDrivingState_Local(bool bDriving);
+	// void ApplyDrivingState_Local(bool bDriving);
 	void HardClampControlRotation();
 	void RefreshAnimInstanceCache();
 

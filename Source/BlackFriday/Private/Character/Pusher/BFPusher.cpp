@@ -122,6 +122,10 @@ void ABFPusher::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 	EnhancedInput->BindAction(SteerAction, ETriggerEvent::Triggered, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_SteerTriggered);
 	EnhancedInput->BindAction(SteerAction, ETriggerEvent::Completed, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_SteerEnded);
+	
+	EnhancedInput->BindAction(DriftAction, ETriggerEvent::Started, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_DriftStarted);
+	EnhancedInput->BindAction(DriftAction, ETriggerEvent::Canceled, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_DriftEnded);
+	EnhancedInput->BindAction(DriftAction, ETriggerEvent::Completed, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_DriftEnded);
 }
 
 void ABFPusher::HandleMoveInput(const FInputActionValue& Value)
@@ -170,7 +174,7 @@ void ABFPusher::HandleLookInput(const FInputActionValue& Value)
 		ControlRot.Pitch += LookY;
 
 		PC->SetControlRotation(ControlRot);
-		HardClampControlRotation();
+		// HardClampControlRotation();
 	}
 	else
 	{
@@ -335,33 +339,31 @@ void ABFPusher::OnRep_Cart()
 
 void ABFPusher::OnRep_IsDriving()
 {
-	ApplyDrivingState_Local(bIsDriving);
-
 	if (CartDrivingComp)
 	{
 		CartDrivingComp->SetDriving(bIsDriving);
 	}
 }
 
-void ABFPusher::HardClampControlRotation()
-{
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!PC || !PC->IsLocalController()) return;
-
-	const FRotator Original = PC->GetControlRotation();
-	FRotator Clamped = Original;
-
-	Clamped.Pitch = FMath::Clamp(Clamped.Pitch, -90.f, 90.f);
-
-	const float ActorYaw = GetActorRotation().Yaw;
-	float OffsetYaw = FMath::FindDeltaAngleDegrees(ActorYaw, Clamped.Yaw);
-	OffsetYaw = FMath::Clamp(OffsetYaw, -90.f, 90.f);
-	Clamped.Yaw = ActorYaw + OffsetYaw;
-
-	Clamped.Roll = 0.f;
-
-	if (!Original.Equals(Clamped, 0.01f))
-	{
-		PC->SetControlRotation(Clamped);
-	}
-}
+// void ABFPusher::HardClampControlRotation()
+// {
+// 	APlayerController* PC = Cast<APlayerController>(GetController());
+// 	if (!PC || !PC->IsLocalController()) return;
+//
+// 	const FRotator Original = PC->GetControlRotation();
+// 	FRotator Clamped = Original;
+//
+// 	Clamped.Pitch = FMath::Clamp(Clamped.Pitch, -90.f, 90.f);
+//
+// 	const float ActorYaw = GetActorRotation().Yaw;
+// 	float OffsetYaw = FMath::FindDeltaAngleDegrees(ActorYaw, Clamped.Yaw);
+// 	OffsetYaw = FMath::Clamp(OffsetYaw, -90.f, 90.f);
+// 	Clamped.Yaw = ActorYaw + OffsetYaw;
+//
+// 	Clamped.Roll = 0.f;
+//
+// 	if (!Original.Equals(Clamped, 0.01f))
+// 	{
+// 		PC->SetControlRotation(Clamped);
+// 	}
+// }

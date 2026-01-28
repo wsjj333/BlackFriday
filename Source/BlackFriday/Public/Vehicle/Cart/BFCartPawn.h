@@ -41,6 +41,7 @@ public:
 	// ✅ 서버에서만 호출되는 입력축 세터(컴포넌트/서버 코드용)
 	void SetAccelAxis_Server(float Axis);
 	void SetSteerAxis_Server(float Axis);
+	void SetSteeringMultiplier_Server(const float Multiplier);
 	
 	// 입력 처리
 	// void SetAccelerationInput(const FInputActionValue& Value);
@@ -91,6 +92,9 @@ protected:
 
 	UPROPERTY(Replicated)
 	FRotator Rep_DriftRotation = FRotator::ZeroRotator;
+	
+	UPROPERTY(Replicated, EditDefaultsOnly, Category="BF|Movement")
+	float Rep_SteeringMultiplier = 2.0f;
 
 	// ----- Tunables -----
 	float SpeedModifier = 1.0f;
@@ -101,8 +105,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="BF|Movement")
 	double SteeringTorque = 1500000.0f;
 
-	UPROPERTY(EditAnywhere, Category="BF|Movement")
-	float SteeringMultiplier = 2.0f;
+	// UPROPERTY(EditAnywhere, Category="BF|Movement")
+	// float SteeringMultiplier = 2.0f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Cart")
 	float SuspensionForceMultiplier = 10000000.0f;
