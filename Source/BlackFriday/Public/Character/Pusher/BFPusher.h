@@ -43,6 +43,9 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Drive", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UBFCartMovementComponent> CartDrivingComp;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Input", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UBFCartMovementComponent> PusherInputComp;
 
 	// ----- Skeletal Mesh -----
 	UPROPERTY(ReplicatedUsing=OnRep_CharacterType, EditDefaultsOnly, Category="BF|Character")
@@ -54,37 +57,25 @@ protected:
 	UFUNCTION()
 	void OnRep_CharacterType();
 
-	// ----- Input Actions -----
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
-	TObjectPtr<UInputMappingContext> PusherMappingContext;
-
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
-	TObjectPtr<UInputAction> LookAction;
-
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
-	TObjectPtr<UInputAction> MoveAction;
-
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
-	TObjectPtr<UInputAction> JumpAction;
-
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
-	TObjectPtr<UInputAction> DriveModeAction;
-	
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
-	TObjectPtr<UInputAction> AccelerationAction;
-	
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
-	TObjectPtr<UInputAction> SteerAction;
-	
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
-	TObjectPtr<UInputAction> DriftAction;
-
 	// ----- Drive Mode -----
 	UPROPERTY(ReplicatedUsing=OnRep_Cart)
 	TObjectPtr<ABFCartPawn> Cart;
+	
+	UPROPERTY(ReplicatedUsing=OnRep_OrientToMovement)
+	bool bOrientToMovement = true;
+	
+	UFUNCTION(Server, Reliable)
+	void ServerSetOrientToMovement(bool bEnable);
+	
+	UFUNCTION()
+	void OnRep_OrientToMovement();
+	
+	void ApplyOrientToMovement(bool bEnable);
 
 	UFUNCTION()
 	void OnRep_Cart();
+	
+	void SetOrientToMovement(bool bEnable);
 
 	UPROPERTY(ReplicatedUsing=OnRep_IsDriving)
 	bool bIsDriving = false;
@@ -94,18 +85,8 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UBFCharacterAnimInstance> CachedAnimInstance;
-
-	// ----- Bound Functions -----
-	void HandleMoveInput(const FInputActionValue& Value);
-	void HandleLookInput(const FInputActionValue& Value);
-	void OnJumpPressed(const FInputActionValue& Value);
-	void OnJumpReleased(const FInputActionValue& Value);
-	void OnToggleDriveModePressed(const FInputActionValue& Value);
-
-	// void ApplyDrivingState_Local(bool bDriving);
-	void HardClampControlRotation();
+	
 	void RefreshAnimInstanceCache();
-
 
 	// -------- 서버 권한 RPC --------
 	UFUNCTION(Server, Reliable)

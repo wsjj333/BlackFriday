@@ -31,7 +31,8 @@ ABFCartPawn::ABFCartPawn()
 	CartBody->SetupAttachment(Root);
 
 	CartHandle = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CartHandle"));
-	CartHandle->SetupAttachment(Root);
+	CartHandle->SetupAttachment(CartBody);
+	CartHandle->SetAbsolute(false, false, false);
 
 	Pivot = CreateDefaultSubobject<USceneComponent>(TEXT("Pivot"));
 	Pivot->SetupAttachment(Root);

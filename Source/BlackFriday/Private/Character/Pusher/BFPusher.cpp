@@ -94,6 +94,8 @@ void ABFPusher::Tick(float DeltaSeconds)
 
 	CachedAnimInstance->HandleTargetL_CS = HandleL_CS;
 	CachedAnimInstance->HandleTargetR_CS = HandleR_CS;
+	
+	ApplyDrivingAttachment_Server(bIsDriving);
 }
 
 void ABFPusher::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -206,6 +208,8 @@ void ABFPusher::OnToggleDriveModePressed(const FInputActionValue& Value)
 	{
 		ServerToggleDrivingMode();
 	}
+	
+	SetOrientToMovement(!bIsDriving);
 }
 
 void ABFPusher::ToggleDrivingMode()
@@ -326,6 +330,25 @@ void ABFPusher::ServerSetCart_Implementation(ABFCartPawn* NewCart)
 	OnRep_Cart();
 }
 
+void ABFPusher::ServerSetOrientToMovement_Implementation(bool bEnable)
+{
+	bOrientToMovement = bEnable;
+	ApplyOrientToMovement(bEnable);
+}
+
+void ABFPusher::OnRep_OrientToMovement()
+{
+	ApplyOrientToMovement(bOrientToMovement);
+}
+
+void ABFPusher::ApplyOrientToMovement(bool bEnable)
+{
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	if (!Move) return;
+
+	Move->bOrientRotationToMovement = bEnable;
+}
+
 void ABFPusher::OnRep_Cart()
 {
 	if (CartDrivingComp)
@@ -335,6 +358,26 @@ void ABFPusher::OnRep_Cart()
 
 	// UI/캐시 갱신 같은 로컬 처리만
 	RefreshAnimInstanceCache();
+}
+
+void ABFPusher::SetOrientToMovement(bool bEnable)
+{
+	// 로컬 즉시 반영(특히 AutonomousProxy에서 체감 중요)
+	if (IsLocallyControlled())
+	{
+		ApplyOrientToMovement(bEnable);
+	}
+
+	// 서버 권한 확정
+	if (HasAuthority())
+	{
+		bOrientToMovement = bEnable;
+		OnRep_OrientToMovement(); // 서버도 즉시 적용하고 싶으면
+	}
+	else
+	{
+		ServerSetOrientToMovement(bEnable);
+	}
 }
 
 void ABFPusher::OnRep_IsDriving()
