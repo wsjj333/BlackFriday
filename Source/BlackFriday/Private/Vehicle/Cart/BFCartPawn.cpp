@@ -165,7 +165,7 @@ void ABFCartPawn::ServerSimTick(float DeltaSeconds)
 
 	// 토크 적용(서버만)
 	const double TorqueZ = Rep_DriftSteer * SteeringTorque * Rep_AccelerationInput * Rep_SteeringMultiplier;
-	UE_LOG(LogTemp, Warning, TEXT("Rep_DriftSteer: %f | Rep_SteeringMultiplier: %f | TorqueZ: %lf"), Rep_DriftSteer, Rep_SteeringMultiplier, TorqueZ);
+	// UE_LOG(LogTemp, Warning, TEXT("Rep_DriftSteer: %f | Rep_SteeringMultiplier: %f | TorqueZ: %lf"), Rep_DriftSteer, Rep_SteeringMultiplier, TorqueZ);
 	Root->AddTorqueInRadians(FVector(0.f, 0.f, TorqueZ));
 }
 

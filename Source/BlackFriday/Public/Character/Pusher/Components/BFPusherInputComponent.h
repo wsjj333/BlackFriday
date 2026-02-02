@@ -23,6 +23,8 @@ public:
 	
 	/** ABFPusher::SetupPlayerInputComponent에서 호출 */
 	void BindInput(UInputComponent* PlayerInputComponent);
+	
+	void EnsureMappingContext();
 
 protected:
 	// Called when the game starts
@@ -58,7 +60,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ABFPusher> OwnerPusher;
 
-	ABFPusher* GetOwnerPusher() const;
+	ABFPusher* GetOwnerPusher();
 	
 	// ----- Bound Functions -----
 	void HandleMoveInput(const FInputActionValue& Value);

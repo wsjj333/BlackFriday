@@ -1,12 +1,10 @@
 #include "Character/Pusher/BFPusher.h"
 
-#include "EnhancedInputSubsystems.h"
-#include "EnhancedInputComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Vehicle/Cart/BFCartPawn.h"
 #include "Character/Common/BFCharacterAnimInstance.h"
+#include "Character/Pusher/Components/BFPusherInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "Net/UnrealNetwork.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
 
@@ -15,6 +13,7 @@ ABFPusher::ABFPusher()
 	bReplicates = true;
 	
 	CartDrivingComp = CreateDefaultSubobject<UBFCartMovementComponent>(TEXT("CartDrivingComp"));
+	PusherInputComp = CreateDefaultSubobject<UBFPusherInputComponent>(TEXT("PusherInputComp"));
 
 	GetCapsuleComponent()->SetCapsuleHalfHeight(110.0f);
 
@@ -31,6 +30,16 @@ void ABFPusher::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetim
 	DOREPLIFETIME(ABFPusher, bIsDriving);
 }
 
+void ABFPusher::PawnClientRestart()
+{
+	Super::PawnClientRestart();
+	
+	if (PusherInputComp)
+	{
+		PusherInputComp->EnsureMappingContext();
+	}
+}
+
 void ABFPusher::BeginPlay()
 {
 	Super::BeginPlay();
@@ -41,23 +50,22 @@ void ABFPusher::BeginPlay()
 		OnRep_CharacterType();
 	}
 
-	// 입력 매핑은 로컬만
-	if (IsLocallyControlled())
+	RefreshAnimInstanceCache();
+}
+
+void ABFPusher::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	
+	if (!IsLocallyControlled())
 	{
-		if (APlayerController* PC = Cast<APlayerController>(Controller))
-		{
-			if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
-			{
-				if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
-					LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-				{
-					Subsystem->AddMappingContext(PusherMappingContext, 0);
-				}
-			}
-		}
+		return;
 	}
 
-	RefreshAnimInstanceCache();
+	if (PusherInputComp)
+	{
+		PusherInputComp->BindInput(PlayerInputComponent);
+	}
 }
 
 void ABFPusher::RefreshAnimInstanceCache()
@@ -98,120 +106,6 @@ void ABFPusher::Tick(float DeltaSeconds)
 	ApplyDrivingAttachment_Server(bIsDriving);
 }
 
-void ABFPusher::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
-	if (!IsLocallyControlled())
-	{
-		return;
-	}
-
-	UEnhancedInputComponent* EnhancedInput = CastChecked<UEnhancedInputComponent>(PlayerInputComponent);
-
-	EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ABFPusher::HandleMoveInput);
-	
-	EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABFPusher::HandleLookInput);
-	
-	EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ABFPusher::OnJumpPressed);
-	EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ABFPusher::OnJumpReleased);
-	
-	EnhancedInput->BindAction(DriveModeAction, ETriggerEvent::Started, this, &ABFPusher::OnToggleDriveModePressed);
-
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Started, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_AccelTriggered);
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Completed, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_AccelEnded);
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Canceled, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_AccelEnded);
-
-	EnhancedInput->BindAction(SteerAction, ETriggerEvent::Triggered, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_SteerTriggered);
-	EnhancedInput->BindAction(SteerAction, ETriggerEvent::Completed, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_SteerEnded);
-	
-	EnhancedInput->BindAction(DriftAction, ETriggerEvent::Started, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_DriftStarted);
-	EnhancedInput->BindAction(DriftAction, ETriggerEvent::Canceled, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_DriftEnded);
-	EnhancedInput->BindAction(DriftAction, ETriggerEvent::Completed, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_DriftEnded);
-}
-
-void ABFPusher::HandleMoveInput(const FInputActionValue& Value)
-{
-	if (bIsDriving)
-	{
-		return;
-	}
-	
-	const FVector2D MoveAxis = Value.Get<FVector2D>();
-
-	const float MoveX = MoveAxis.X;
-	const float MoveY = MoveAxis.Y;
-
-	const FRotator ControlRot = GetControlRotation();
-	FRotator RotForMove(0.0f, ControlRot.Yaw, 0.0f);
-
-	FVector WorldDirection = UKismetMathLibrary::GetRightVector(RotForMove);
-	AddMovementInput(WorldDirection, MoveX);
-
-	WorldDirection = UKismetMathLibrary::GetForwardVector(RotForMove);
-	AddMovementInput(WorldDirection, MoveY);
-}
-
-void ABFPusher::HandleLookInput(const FInputActionValue& Value)
-{
-	if (!IsLocallyControlled())
-	{
-		return;
-	}
-
-	const FVector2D LookAxis = Value.Get<FVector2D>();
-	const float LookX = LookAxis.X;
-	const float LookY = LookAxis.Y;
-
-	if (bIsDriving)
-	{
-		APlayerController* PC = Cast<APlayerController>(GetController());
-		if (!PC || !PC->IsLocalController())
-		{
-			return;
-		}
-
-		FRotator ControlRot = PC->GetControlRotation();
-		ControlRot.Yaw += LookX;
-		ControlRot.Pitch += LookY;
-
-		PC->SetControlRotation(ControlRot);
-		// HardClampControlRotation();
-	}
-	else
-	{
-		AddControllerYawInput(LookX);
-		AddControllerPitchInput(LookY);
-	}
-}
-
-void ABFPusher::OnJumpPressed(const FInputActionValue& Value)
-{
-	Jump();
-}
-
-void ABFPusher::OnJumpReleased(const FInputActionValue& Value)
-{
-	StopJumping();
-}
-
-void ABFPusher::OnToggleDriveModePressed(const FInputActionValue& Value)
-{
-	if (!Cart) return;
-
-	// 드라이빙 토글은 서버가 결정(복제)
-	if (HasAuthority())
-	{
-		ServerToggleDrivingMode(); // 서버에서도 한 경로로
-	}
-	else
-	{
-		ServerToggleDrivingMode();
-	}
-	
-	SetOrientToMovement(!bIsDriving);
-}
-
 void ABFPusher::ToggleDrivingMode()
 {
 	// 외부(BP)에서 호출해도 서버로 라우팅
@@ -223,6 +117,8 @@ void ABFPusher::ToggleDrivingMode()
 	{
 		ServerToggleDrivingMode();
 	}
+	
+	SetOrientToMovement(!bIsDriving);
 }
 
 void ABFPusher::ServerToggleDrivingMode_Implementation()
@@ -387,26 +283,3 @@ void ABFPusher::OnRep_IsDriving()
 		CartDrivingComp->SetDriving(bIsDriving);
 	}
 }
-
-// void ABFPusher::HardClampControlRotation()
-// {
-// 	APlayerController* PC = Cast<APlayerController>(GetController());
-// 	if (!PC || !PC->IsLocalController()) return;
-//
-// 	const FRotator Original = PC->GetControlRotation();
-// 	FRotator Clamped = Original;
-//
-// 	Clamped.Pitch = FMath::Clamp(Clamped.Pitch, -90.f, 90.f);
-//
-// 	const float ActorYaw = GetActorRotation().Yaw;
-// 	float OffsetYaw = FMath::FindDeltaAngleDegrees(ActorYaw, Clamped.Yaw);
-// 	OffsetYaw = FMath::Clamp(OffsetYaw, -90.f, 90.f);
-// 	Clamped.Yaw = ActorYaw + OffsetYaw;
-//
-// 	Clamped.Roll = 0.f;
-//
-// 	if (!Original.Equals(Clamped, 0.01f))
-// 	{
-// 		PC->SetControlRotation(Clamped);
-// 	}
-// }

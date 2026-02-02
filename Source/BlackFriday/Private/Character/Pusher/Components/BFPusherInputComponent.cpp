@@ -1,73 +1,332 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
+// Cart movement component (네 코드 기준)
 #include "Character/Pusher/Components/BFPusherInputComponent.h"
 
-// Sets default values for this component's properties
+// Enhanced Input
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputActionValue.h"
+
+// For movement/look math
+#include "Kismet/KismetMathLibrary.h"
+#include "GameFramework/PlayerController.h"
+
+#include "Character/Pusher/BFPusher.h"
+#include "Vehicle/Cart/BFCartMovementComponent.h"
+
+
 UBFPusherInputComponent::UBFPusherInputComponent()
 {
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UBFPusherInputComponent::BindInput(UInputComponent* PlayerInputComponent)
+void UBFPusherInputComponent::BeginPlay()
 {
+	Super::BeginPlay();
+
+	OwnerPusher = Cast<ABFPusher>(GetOwner());
+
+	AddMappingContextIfLocal();
 }
 
-ABFPusher* UBFPusherInputComponent::GetOwnerPusher() const
+ABFPusher* UBFPusherInputComponent::GetOwnerPusher()
 {
-}
+	// 1) 캐시가 이미 있으면 그대로 사용
+	if (OwnerPusher)
+	{
+		return OwnerPusher.Get();
+	}
 
-void UBFPusherInputComponent::HandleMoveInput(const FInputActionValue& Value)
-{
-}
-
-void UBFPusherInputComponent::HandleLookInput(const FInputActionValue& Value)
-{
-}
-
-void UBFPusherInputComponent::OnJumpPressed(const FInputActionValue& Value)
-{
-}
-
-void UBFPusherInputComponent::OnJumpReleased(const FInputActionValue& Value)
-{
-}
-
-void UBFPusherInputComponent::OnToggleDriveModePressed(const FInputActionValue& Value)
-{
-}
-
-void UBFPusherInputComponent::OnAccelTriggered(const FInputActionValue& Value)
-{
-}
-
-void UBFPusherInputComponent::OnAccelEnded(const FInputActionValue& Value)
-{
-}
-
-void UBFPusherInputComponent::OnSteerTriggered(const FInputActionValue& Value)
-{
-}
-
-void UBFPusherInputComponent::OnSteerEnded(const FInputActionValue& Value)
-{
-}
-
-void UBFPusherInputComponent::OnDriftStarted(const FInputActionValue& Value)
-{
-}
-
-void UBFPusherInputComponent::OnDriftEnded(const FInputActionValue& Value)
-{
+	// 2) 캐시가 없으면 지금 오너에서 다시 캐시
+	OwnerPusher = Cast<ABFPusher>(GetOwner());
+	return OwnerPusher.Get();
 }
 
 void UBFPusherInputComponent::AddMappingContextIfLocal()
 {
+	const ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher || !Pusher->IsLocallyControlled())
+	{
+		return;
+	}
+
+	const APlayerController* PC = Cast<APlayerController>(Pusher->GetController());
+	if (!PC || !PC->IsLocalController())
+	{
+		return;
+	}
+
+	const ULocalPlayer* LocalPlayer = PC->GetLocalPlayer();
+	if (!LocalPlayer)
+	{
+		return;
+	}
+
+	UEnhancedInputLocalPlayerSubsystem* Subsystem =
+		LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	if (!Subsystem)
+	{
+		return;
+	}
+
+	if (!PusherMappingContext)
+	{
+		return;
+	}
+
+	Subsystem->AddMappingContext(PusherMappingContext, 0);
 }
 
-
-// Called when the game starts
-void UBFPusherInputComponent::BeginPlay()
+void UBFPusherInputComponent::BindInput(UInputComponent* PlayerInputComponent)
 {
-	Super::BeginPlay();
+	const ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher)
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(Pusher->GetController());
+	if (!PC)
+	{
+		return; // 아직 Possess 안 됨 → PawnClientRestart에서 다시 호출
+	}
+
+	if (!PC->IsLocalController())
+	{
+		return;
+	}
+
+	if (!PlayerInputComponent)
+	{
+		return;
+	}
+
+	UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+	if (!EnhancedInput)
+	{
+		// 프로젝트 전제상 EnhancedInput 사용 중이니 여기서 assert 성격으로 처리
+		ensureMsgf(
+			false, TEXT("UBFPusherInputComponent::BindInput - PlayerInputComponent is not EnhancedInputComponent"));
+		return;
+	}
+
+	// --- 기존 ABFPusher 바인딩 그대로 ---
+	if (MoveAction)
+	{
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this,
+		                          &UBFPusherInputComponent::HandleMoveInput);
+	}
+
+	if (LookAction)
+	{
+		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this,
+		                          &UBFPusherInputComponent::HandleLookInput);
+	}
+
+	if (JumpAction)
+	{
+		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &UBFPusherInputComponent::OnJumpPressed);
+		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &UBFPusherInputComponent::OnJumpReleased);
+	}
+
+	if (DriveModeAction)
+	{
+		EnhancedInput->BindAction(DriveModeAction, ETriggerEvent::Started, this,
+		                          &UBFPusherInputComponent::OnToggleDriveModePressed);
+	}
+
+	// --- 카트 입력: 기존엔 CartDrivingComp.Get()에 직접 바인딩했지만
+	// 컴포넌트 분리 첫 단계에서는 InputComp가 라우팅해도 됨 ---
+	// (OwnerPusher->CartDrivingComp 접근이 private이면, ABFPusher에 GetCartDrivingComp() getter 하나 추가 추천)
+
+	if (AccelerationAction)
+	{
+		EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Started, this,
+		                          &UBFPusherInputComponent::OnAccelTriggered);
+		EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Completed, this,
+		                          &UBFPusherInputComponent::OnAccelEnded);
+		EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Canceled, this,
+		                          &UBFPusherInputComponent::OnAccelEnded);
+	}
+
+	if (SteerAction)
+	{
+		EnhancedInput->BindAction(SteerAction, ETriggerEvent::Triggered, this,
+		                          &UBFPusherInputComponent::OnSteerTriggered);
+		EnhancedInput->BindAction(SteerAction, ETriggerEvent::Completed, this, &UBFPusherInputComponent::OnSteerEnded);
+	}
+
+	if (DriftAction)
+	{
+		EnhancedInput->BindAction(DriftAction, ETriggerEvent::Started, this, &UBFPusherInputComponent::OnDriftStarted);
+		EnhancedInput->BindAction(DriftAction, ETriggerEvent::Canceled, this, &UBFPusherInputComponent::OnDriftEnded);
+		EnhancedInput->BindAction(DriftAction, ETriggerEvent::Completed, this, &UBFPusherInputComponent::OnDriftEnded);
+	}
 }
 
+void UBFPusherInputComponent::EnsureMappingContext()
+{
+	AddMappingContextIfLocal();
+}
+
+// -------------------- Bound Functions --------------------
+
+void UBFPusherInputComponent::HandleMoveInput(const FInputActionValue& Value)
+{
+	ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher)
+	{
+		return;
+	}
+
+	// 기존 코드와 동일: 운전 중이면 캐릭터 이동 입력 무시
+	if (Pusher->IsDriving())
+	{
+		return;
+	}
+
+	const FVector2D MoveAxis = Value.Get<FVector2D>();
+	const float MoveX = MoveAxis.X;
+	const float MoveY = MoveAxis.Y;
+
+	const FRotator ControlRot = Pusher->GetControlRotation();
+	FRotator RotForMove(0.0f, ControlRot.Yaw, 0.0f);
+
+	FVector WorldDirection = UKismetMathLibrary::GetRightVector(RotForMove);
+	Pusher->AddMovementInput(WorldDirection, MoveX);
+
+	WorldDirection = UKismetMathLibrary::GetForwardVector(RotForMove);
+	Pusher->AddMovementInput(WorldDirection, MoveY);
+}
+
+void UBFPusherInputComponent::HandleLookInput(const FInputActionValue& Value)
+{
+	ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher || !Pusher->IsLocallyControlled())
+	{
+		return;
+	}
+
+	const FVector2D LookAxis = Value.Get<FVector2D>();
+	const float LookX = LookAxis.X;
+	const float LookY = LookAxis.Y;
+
+	if (Pusher->IsDriving())
+	{
+		APlayerController* PC = Cast<APlayerController>(Pusher->GetController());
+		if (!PC || !PC->IsLocalController())
+		{
+			return;
+		}
+
+		FRotator ControlRot = PC->GetControlRotation();
+		ControlRot.Yaw += LookX;
+		ControlRot.Pitch += LookY;
+
+		PC->SetControlRotation(ControlRot);
+	}
+	else
+	{
+		Pusher->AddControllerYawInput(LookX);
+		Pusher->AddControllerPitchInput(LookY);
+	}
+}
+
+void UBFPusherInputComponent::OnJumpPressed(const FInputActionValue& /*Value*/)
+{
+	ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher) return;
+
+	Pusher->Jump();
+}
+
+void UBFPusherInputComponent::OnJumpReleased(const FInputActionValue& /*Value*/)
+{
+	ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher) return;
+
+	Pusher->StopJumping();
+}
+
+void UBFPusherInputComponent::OnToggleDriveModePressed(const FInputActionValue& /*Value*/)
+{
+	ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher) return;
+
+	// 기존 로직: Cart 없으면 무시
+	if (!Pusher->GetCart()) return;
+
+	// 기존 코드처럼 서버에서 결정되도록 ToggleDrivingMode()를 호출
+	Pusher->ToggleDrivingMode();
+}
+
+static UBFCartMovementComponent* ResolveCartMoveComp(const ABFPusher* Pusher)
+{
+	if (!Pusher) return nullptr;
+	return Pusher->GetCartDrivingComp();
+}
+
+void UBFPusherInputComponent::OnAccelTriggered(const FInputActionValue& Value)
+{
+	const ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher || !Pusher->IsDriving()) return;
+
+	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
+	{
+		CartMovementComp->Input_AccelTriggered(Value);
+	}
+}
+
+void UBFPusherInputComponent::OnAccelEnded(const FInputActionValue& Value)
+{
+	const ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher || !Pusher->IsDriving()) return;
+
+	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
+	{
+		CartMovementComp->Input_AccelEnded(Value);
+	}
+}
+
+void UBFPusherInputComponent::OnSteerTriggered(const FInputActionValue& Value)
+{
+	const ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher || !Pusher->IsDriving()) return;
+
+	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
+	{
+		CartMovementComp->Input_SteerTriggered(Value);
+	}
+}
+
+void UBFPusherInputComponent::OnSteerEnded(const FInputActionValue& Value)
+{
+	const ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher || !Pusher->IsDriving()) return;
+
+	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
+	{
+		CartMovementComp->Input_SteerEnded(Value);
+	}
+}
+
+void UBFPusherInputComponent::OnDriftStarted(const FInputActionValue& Value)
+{
+	const ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher || !Pusher->IsDriving()) return;
+
+	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
+	{
+		CartMovementComp->Input_DriftStarted(Value);
+	}
+}
+
+void UBFPusherInputComponent::OnDriftEnded(const FInputActionValue& Value)
+{
+	const ABFPusher* Pusher = GetOwnerPusher();
+	if (!Pusher || !Pusher->IsDriving()) return;
+
+	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
+	{
+		CartMovementComp->Input_DriftEnded(Value);
+	}
+}
