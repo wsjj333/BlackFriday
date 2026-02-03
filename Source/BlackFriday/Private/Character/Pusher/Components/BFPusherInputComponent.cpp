@@ -11,6 +11,7 @@
 #include "GameFramework/PlayerController.h"
 
 #include "Character/Pusher/BFPusher.h"
+#include "Character/Pusher/Components/BFPusherDriveComponent.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
 
 
@@ -249,14 +250,13 @@ void UBFPusherInputComponent::OnJumpReleased(const FInputActionValue& /*Value*/)
 
 void UBFPusherInputComponent::OnToggleDriveModePressed(const FInputActionValue& /*Value*/)
 {
-	ABFPusher* Pusher = GetOwnerPusher();
+	const ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher) return;
 
-	// 기존 로직: Cart 없으면 무시
-	if (!Pusher->GetCart()) return;
-
-	// 기존 코드처럼 서버에서 결정되도록 ToggleDrivingMode()를 호출
-	Pusher->ToggleDrivingMode();
+	if (UBFPusherDriveComponent* Drive = Pusher->FindComponentByClass<UBFPusherDriveComponent>())
+	{
+		Drive->ToggleDrivingMode();
+	}
 }
 
 static UBFCartMovementComponent* ResolveCartMoveComp(const ABFPusher* Pusher)

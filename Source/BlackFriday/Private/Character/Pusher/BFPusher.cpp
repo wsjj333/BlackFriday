@@ -1,12 +1,12 @@
 #include "Character/Pusher/BFPusher.h"
 
 #include "Components/CapsuleComponent.h"
-#include "Vehicle/Cart/BFCartPawn.h"
 #include "Character/Common/BFCharacterAnimInstance.h"
+#include "Character/Pusher/Components/BFCharacterAppearanceComponent.h"
+#include "Character/Pusher/Components/BFPusherDriveComponent.h"
 #include "Character/Pusher/Components/BFPusherInputComponent.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "Net/UnrealNetwork.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
+#include "Vehicle/Cart/BFCartPawn.h"
 
 ABFPusher::ABFPusher()
 {
@@ -14,20 +14,13 @@ ABFPusher::ABFPusher()
 	
 	CartDrivingComp = CreateDefaultSubobject<UBFCartMovementComponent>(TEXT("CartDrivingComp"));
 	PusherInputComp = CreateDefaultSubobject<UBFPusherInputComponent>(TEXT("PusherInputComp"));
+	PusherDriveComp = CreateDefaultSubobject<UBFPusherDriveComponent>(TEXT("PusherDriveComp"));
+	AppearanceComp = CreateDefaultSubobject<UBFCharacterAppearanceComponent>(TEXT("AppearanceComp"));
 
 	GetCapsuleComponent()->SetCapsuleHalfHeight(110.0f);
 
 	GetMesh()->SetRelativeLocation(FVector(0.0f, 0.0f, -110.0f));
 	GetMesh()->SetRelativeRotation(FRotator(0.0f, 0.0f, -90.0f));
-}
-
-void ABFPusher::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	DOREPLIFETIME(ABFPusher, CharacterType);
-	DOREPLIFETIME(ABFPusher, Cart);
-	DOREPLIFETIME(ABFPusher, bIsDriving);
 }
 
 void ABFPusher::PawnClientRestart()
@@ -43,12 +36,6 @@ void ABFPusher::PawnClientRestart()
 void ABFPusher::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// 서버가 CharacterType을 소스로 갖고, 클라는 OnRep로 반영
-	if (HasAuthority())
-	{
-		OnRep_CharacterType();
-	}
 
 	RefreshAnimInstanceCache();
 }
@@ -86,7 +73,7 @@ void ABFPusher::Tick(float DeltaSeconds)
 	}
 
 	// IK는 “복제된 Cart의 Transform” 기반으로 각자 계산해도 OK
-	if (!bIsDriving || !Cart || !CachedAnimInstance)
+	if (!PusherDriveComp->IsDriving() || !GetCart() || !CachedAnimInstance)
 	{
 		return;
 	}
@@ -94,192 +81,35 @@ void ABFPusher::Tick(float DeltaSeconds)
 	USkeletalMeshComponent* MeshComp = GetMesh();
 	if (!MeshComp) return;
 
-	const FTransform HandleL_WS = Cart->GetHandleLTransform();
-	const FTransform HandleR_WS = Cart->GetHandleRTransform();
+	const FTransform HandleL_WS = GetCart()->GetHandleLTransform();
+	const FTransform HandleR_WS = GetCart()->GetHandleRTransform();
 
 	const FTransform HandleL_CS = HandleL_WS.GetRelativeTransform(MeshComp->GetComponentTransform());
 	const FTransform HandleR_CS = HandleR_WS.GetRelativeTransform(MeshComp->GetComponentTransform());
 
 	CachedAnimInstance->HandleTargetL_CS = HandleL_CS;
 	CachedAnimInstance->HandleTargetR_CS = HandleR_CS;
-	
-	ApplyDrivingAttachment_Server(bIsDriving);
 }
 
 void ABFPusher::ToggleDrivingMode()
 {
-	// 외부(BP)에서 호출해도 서버로 라우팅
-	if (HasAuthority())
+	if (PusherDriveComp)
 	{
-		ServerToggleDrivingMode();
-	}
-	else
-	{
-		ServerToggleDrivingMode();
-	}
-	
-	SetOrientToMovement(!bIsDriving);
-}
-
-void ABFPusher::ServerToggleDrivingMode_Implementation()
-{
-	bIsDriving = !bIsDriving;
-
-	ApplyDrivingAttachment_Server(bIsDriving);
-
-	// 서버 자신도 로컬 상태 반영
-	OnRep_IsDriving();
-}
-
-void ABFPusher::ApplyDrivingAttachment_Server(bool bAttach)
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	if (bAttach)
-	{
-		if (!Cart) return;
-
-		USceneComponent* StandAnker = Cart->GetPusherStandAnkerComponent();
-		if (!StandAnker) return;
-
-		const FAttachmentTransformRules Rules(
-			EAttachmentRule::SnapToTarget,
-			EAttachmentRule::SnapToTarget,
-			EAttachmentRule::KeepWorld,
-			true);
-
-		AttachToComponent(StandAnker, Rules);
-	}
-	else
-	{
-		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		PusherDriveComp->ToggleDrivingMode();
 	}
 }
 
-void ABFPusher::SetCurrentSkeletalMeshAsset(EBFCharacterType NewCharacterType)
+bool ABFPusher::IsDriving() const
 {
-	if (HasAuthority())
-	{
-		ServerSetCharacterType(NewCharacterType);
-	}
-	else
-	{
-		ServerSetCharacterType(NewCharacterType);
-	}
+	return PusherDriveComp ? PusherDriveComp->IsDriving() : false;
 }
 
-void ABFPusher::ServerSetCharacterType_Implementation(EBFCharacterType NewType)
+ABFCartPawn* ABFPusher::GetCart() const
 {
-	const bool bIsValid =
-		StaticEnum<EBFCharacterType>()->IsValidEnumValue(static_cast<int64>(NewType)) &&
-		NewType != EBFCharacterType::None;
-
-	if (!bIsValid) return;
-
-	CharacterType = NewType;
-	OnRep_CharacterType();
+	return PusherDriveComp ? PusherDriveComp->GetCart() : nullptr;
 }
 
-void ABFPusher::OnRep_CharacterType()
+void ABFPusher::SetCart(ABFCartPawn* NewCart) const
 {
-	if (CharacterType == EBFCharacterType::None) return;
-
-	if (TSoftObjectPtr<USkeletalMesh>* Found = CharacterMeshMap.Find(CharacterType))
-	{
-		if (USkeletalMesh* MeshAsset = Found->LoadSynchronous())
-		{
-			if (GetMesh())
-			{
-				GetMesh()->SetSkeletalMeshAsset(MeshAsset);
-			}
-		}
-	}
-
-	RefreshAnimInstanceCache();
-}
-
-void ABFPusher::SetCart(ABFCartPawn* NewCart)
-{
-	// 서버는 즉시 세팅 (RPC 금지)
-	if (HasAuthority())
-	{
-		Cart = NewCart;
-		OnRep_Cart();
-		return;
-	}
-
-	// 클라는 "내가 소유한 Pusher"에서만 서버에 요청 가능
-	if (!IsLocallyControlled())
-	{
-		return; // <- 핵심: 원격 Pusher(시뮬프록시)에서 RPC 호출 금지
-	}
-
-	ServerSetCart(NewCart);
-}
-
-void ABFPusher::ServerSetCart_Implementation(ABFCartPawn* NewCart)
-{
-	Cart = NewCart;
-	OnRep_Cart();
-}
-
-void ABFPusher::ServerSetOrientToMovement_Implementation(bool bEnable)
-{
-	bOrientToMovement = bEnable;
-	ApplyOrientToMovement(bEnable);
-}
-
-void ABFPusher::OnRep_OrientToMovement()
-{
-	ApplyOrientToMovement(bOrientToMovement);
-}
-
-void ABFPusher::ApplyOrientToMovement(bool bEnable)
-{
-	UCharacterMovementComponent* Move = GetCharacterMovement();
-	if (!Move) return;
-
-	Move->bOrientRotationToMovement = bEnable;
-}
-
-void ABFPusher::OnRep_Cart()
-{
-	if (CartDrivingComp)
-	{
-		CartDrivingComp->SetCart(Cart);
-	}
-
-	// UI/캐시 갱신 같은 로컬 처리만
-	RefreshAnimInstanceCache();
-}
-
-void ABFPusher::SetOrientToMovement(bool bEnable)
-{
-	// 로컬 즉시 반영(특히 AutonomousProxy에서 체감 중요)
-	if (IsLocallyControlled())
-	{
-		ApplyOrientToMovement(bEnable);
-	}
-
-	// 서버 권한 확정
-	if (HasAuthority())
-	{
-		bOrientToMovement = bEnable;
-		OnRep_OrientToMovement(); // 서버도 즉시 적용하고 싶으면
-	}
-	else
-	{
-		ServerSetOrientToMovement(bEnable);
-	}
-}
-
-void ABFPusher::OnRep_IsDriving()
-{
-	if (CartDrivingComp)
-	{
-		CartDrivingComp->SetDriving(bIsDriving);
-	}
+	if (PusherDriveComp) PusherDriveComp->SetCart(NewCart);
 }
