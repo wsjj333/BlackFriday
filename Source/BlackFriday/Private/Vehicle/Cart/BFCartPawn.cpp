@@ -1,6 +1,4 @@
 #include "Vehicle/Cart/BFCartPawn.h"
-
-#include "EnhancedInputComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"

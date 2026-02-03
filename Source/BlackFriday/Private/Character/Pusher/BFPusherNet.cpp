@@ -9,6 +9,9 @@
 #include "Vehicle/Cart/BFCartMovementComponent.h"
 #include "Vehicle/Cart/BFCartPawn.h"
 #include "Character/Common/BFCharacterAnimInstance.h"
+#include "Character/Pusher/Components/BFCharacterAppearanceComponent.h"
+#include "Character/Pusher/Components/BFPusherDriveComponent.h"
+#include "Character/Pusher/Components/BFPusherInputComponent.h"
 #include "Net/UnrealNetwork.h"
 
 ABFPusherNet::ABFPusherNet()
@@ -41,6 +44,12 @@ ABFPusherNet::ABFPusherNet()
 
 	// 카트 조종 컴포넌트
 	CartDrivingComp = CreateDefaultSubobject<UBFCartMovementComponent>(TEXT("CartDrivingComp"));
+	
+	PusherInputComp = CreateDefaultSubobject<UBFPusherInputComponent>(TEXT("PusherInputComp"));
+	
+	PusherDriveComp = CreateDefaultSubobject<UBFPusherDriveComponent>(TEXT("PusherDriveComp"));
+	
+	AppearanceComp = CreateDefaultSubobject<UBFCharacterAppearanceComponent>(TEXT("AppearanceComp"));
 }
 
 void ABFPusherNet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

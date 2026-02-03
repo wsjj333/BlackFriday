@@ -6,6 +6,9 @@
 #include "Data/Enums/BFCharacterType.h"
 #include "BFPusherNet.generated.h"
 
+class UBFPusherInputComponent;
+class UBFPusherDriveComponent;
+class UBFCharacterAppearanceComponent;
 class UCapsuleComponent;
 class USkeletalMeshComponent;
 class UBFPhysicsMovementComponent;
@@ -63,6 +66,15 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Components")
 	TObjectPtr<UBFCartMovementComponent> CartDrivingComp;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Input", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UBFPusherInputComponent> PusherInputComp;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Drive", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UBFPusherDriveComponent> PusherDriveComp;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Appearance", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UBFCharacterAppearanceComponent> AppearanceComp;
 
 	// ----- Skeletal Mesh -----
 	UPROPERTY(ReplicatedUsing=OnRep_CharacterType, EditDefaultsOnly, Category="BF|Character")
