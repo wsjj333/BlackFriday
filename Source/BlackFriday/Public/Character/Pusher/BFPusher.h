@@ -63,4 +63,9 @@ protected:
 	TObjectPtr<UBFCharacterAnimInstance> CachedAnimInstance;
 
 	void RefreshAnimInstanceCache();
+	
+private:
+	UFUNCTION()
+	void HandleAppearanceApplied(EBFCharacterType AppliedType);
+
 };

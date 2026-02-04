@@ -36,6 +36,11 @@ void ABFPusher::PawnClientRestart()
 void ABFPusher::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	if (AppearanceComp)
+	{
+		AppearanceComp->OnAppearanceApplied.AddDynamic(this, &ABFPusher::HandleAppearanceApplied);
+	}
 
 	RefreshAnimInstanceCache();
 }
@@ -59,18 +64,23 @@ void ABFPusher::RefreshAnimInstanceCache()
 {
 	if (USkeletalMeshComponent* MeshComp = GetMesh())
 	{
-		CachedAnimInstance = Cast<UBFCharacterAnimInstance>(MeshComp->GetAnimInstance());
+		UAnimInstance* Current = MeshComp->GetAnimInstance();
+		if (CachedAnimInstance != Current)
+		{
+			CachedAnimInstance = Cast<UBFCharacterAnimInstance>(Current);
+		}
 	}
+}
+
+void ABFPusher::HandleAppearanceApplied(EBFCharacterType AppliedType)
+{
+	// 메시 교체 후 AnimInstance가 재생성/교체될 수 있으니 캐시 갱신
+	RefreshAnimInstanceCache();
 }
 
 void ABFPusher::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
-	if (!CachedAnimInstance)
-	{
-		RefreshAnimInstanceCache();
-	}
 
 	// IK는 “복제된 Cart의 Transform” 기반으로 각자 계산해도 OK
 	if (!PusherDriveComp->IsDriving() || !GetCart() || !CachedAnimInstance)

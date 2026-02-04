@@ -113,6 +113,9 @@ void UBFCharacterAppearanceComponent::ApplyCharacterType(EBFCharacterType TypeTo
 	}
 
 	MeshComp->SetSkeletalMeshAsset(MeshAsset);
+	
+	// 외형 적용 완료 이벤트 (서버/클라 모두)
+	OnAppearanceApplied.Broadcast(TypeToApply);
 }
 
 bool UBFCharacterAppearanceComponent::IsValidCharacterType(EBFCharacterType Type) const

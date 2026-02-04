@@ -49,7 +49,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	// ----- Components -----
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Components")
@@ -131,7 +131,6 @@ protected:
 	void OnJumpReleased(const FInputActionValue& Value);
 	void OnToggleDriveModePressed(const FInputActionValue& Value);
 
-	void HardClampControlRotation();
 	void RefreshAnimInstanceCache();
 	void SetPhysicsEnabled(bool bEnabled);
 

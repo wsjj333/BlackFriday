@@ -1,7 +1,5 @@
 #include "Character/Pusher/BFPusherNet.h"
-
-#include "EnhancedInputSubsystems.h"
-#include "EnhancedInputComponent.h"
+#include "Net/UnrealNetwork.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Component/BFPhysicsMovementComponent.h"
@@ -12,7 +10,6 @@
 #include "Character/Pusher/Components/BFCharacterAppearanceComponent.h"
 #include "Character/Pusher/Components/BFPusherDriveComponent.h"
 #include "Character/Pusher/Components/BFPusherInputComponent.h"
-#include "Net/UnrealNetwork.h"
 
 ABFPusherNet::ABFPusherNet()
 {
@@ -20,7 +17,7 @@ ABFPusherNet::ABFPusherNet()
 
 	// 캡슐 컴포넌트 (루트, 물리 시뮬레이션)
 	CapsuleComp = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComp"));
-	CapsuleComp->InitCapsuleSize(42.f, 90.f);
+	CapsuleComp->InitCapsuleSize(42.f, 110.f);
 	CapsuleComp->SetCollisionProfileName(TEXT("PhysicsActor"));
 	CapsuleComp->SetSimulatePhysics(true);
 	CapsuleComp->SetEnableGravity(true);
@@ -45,45 +42,19 @@ ABFPusherNet::ABFPusherNet()
 	// 카트 조종 컴포넌트
 	CartDrivingComp = CreateDefaultSubobject<UBFCartMovementComponent>(TEXT("CartDrivingComp"));
 	
+	// 푸셔 조종 컴포넌트
 	PusherInputComp = CreateDefaultSubobject<UBFPusherInputComponent>(TEXT("PusherInputComp"));
 	
+	// 운전 관련 컴포넌트
 	PusherDriveComp = CreateDefaultSubobject<UBFPusherDriveComponent>(TEXT("PusherDriveComp"));
 	
+	// 외형 컴포넌트
 	AppearanceComp = CreateDefaultSubobject<UBFCharacterAppearanceComponent>(TEXT("AppearanceComp"));
-}
-
-void ABFPusherNet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	DOREPLIFETIME(ABFPusherNet, CharacterType);
-	DOREPLIFETIME(ABFPusherNet, Cart);
-	DOREPLIFETIME(ABFPusherNet, bIsDriving);
 }
 
 void ABFPusherNet::BeginPlay()
 {
 	Super::BeginPlay();
-
-	if (HasAuthority())
-	{
-		OnRep_CharacterType();
-	}
-
-	if (IsLocallyControlled())
-	{
-		if (APlayerController* PC = Cast<APlayerController>(Controller))
-		{
-			if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
-			{
-				if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
-					LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-				{
-					Subsystem->AddMappingContext(PusherMappingContext, 0);
-				}
-			}
-		}
-	}
 
 	RefreshAnimInstanceCache();
 }
@@ -99,11 +70,6 @@ void ABFPusherNet::RefreshAnimInstanceCache()
 void ABFPusherNet::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
-	if (!CachedAnimInstance)
-	{
-		RefreshAnimInstanceCache();
-	}
 
 	if (!bIsDriving || !Cart || !CachedAnimInstance)
 	{
@@ -130,24 +96,15 @@ void ABFPusherNet::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 		return;
 	}
 
-	UEnhancedInputComponent* EnhancedInput = CastChecked<UEnhancedInputComponent>(PlayerInputComponent);
+	if (PusherInputComp)
+	{
+		PusherInputComp->BindInput(PlayerInputComponent);
+	}
+}
 
-	EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ABFPusherNet::HandleMoveInput);
-	EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this, &ABFPusherNet::HandleMoveInput);
-
-	EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABFPusherNet::HandleLookInput);
-
-	EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ABFPusherNet::OnJumpPressed);
-	EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ABFPusherNet::OnJumpReleased);
-
-	EnhancedInput->BindAction(DriveModeAction, ETriggerEvent::Started, this, &ABFPusherNet::OnToggleDriveModePressed);
-
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Started, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_AccelTriggered);
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Completed, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_AccelEnded);
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Canceled, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_AccelEnded);
-
-	EnhancedInput->BindAction(SteerAction, ETriggerEvent::Triggered, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_SteerTriggered);
-	EnhancedInput->BindAction(SteerAction, ETriggerEvent::Completed, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_SteerEnded);
+void ABFPusherNet::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 }
 
 void ABFPusherNet::HandleMoveInput(const FInputActionValue& Value)
@@ -191,7 +148,6 @@ void ABFPusherNet::HandleLookInput(const FInputActionValue& Value)
 		ControlRot.Pitch += LookY;
 
 		PC->SetControlRotation(ControlRot);
-		HardClampControlRotation();
 	}
 	else
 	{
@@ -397,28 +353,5 @@ void ABFPusherNet::OnRep_IsDriving()
 	if (!HasAuthority())
 	{
 		SetPhysicsEnabled(!bIsDriving);
-	}
-}
-
-void ABFPusherNet::HardClampControlRotation()
-{
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!PC || !PC->IsLocalController()) return;
-
-	const FRotator Original = PC->GetControlRotation();
-	FRotator Clamped = Original;
-
-	Clamped.Pitch = FMath::Clamp(Clamped.Pitch, -90.f, 90.f);
-
-	const float ActorYaw = GetActorRotation().Yaw;
-	float OffsetYaw = FMath::FindDeltaAngleDegrees(ActorYaw, Clamped.Yaw);
-	OffsetYaw = FMath::Clamp(OffsetYaw, -90.f, 90.f);
-	Clamped.Yaw = ActorYaw + OffsetYaw;
-
-	Clamped.Roll = 0.f;
-
-	if (!Original.Equals(Clamped, 0.01f))
-	{
-		PC->SetControlRotation(Clamped);
 	}
 }
