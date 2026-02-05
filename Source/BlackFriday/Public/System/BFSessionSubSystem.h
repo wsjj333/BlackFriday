@@ -102,9 +102,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "BF|Session")
     void CreateSession(int32 InMaxPlayers, bool bInIsLAN);
 
-    // 세션 이름과 함께 세션 생성
+    // 세션 이름과 팀 개수로 세션 생성 (MaxPlayers = TeamCount * 2 자동 계산)
     UFUNCTION(BlueprintCallable, Category = "BF|Session")
-    void CreateSessionWithName(const FString& InSessionName, int32 InMaxPlayers = 8, bool bInIsLAN = false);
+    void CreateSessionWithName(const FString& InSessionName, int32 InTeamCount = 4, bool bInIsLAN = false);
 
     UFUNCTION(BlueprintCallable, Category = "BF|Session")
     void FindSessions(int32 InMaxResults, bool bInIsLAN);

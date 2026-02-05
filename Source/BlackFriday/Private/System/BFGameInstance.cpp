@@ -1,6 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "System/BFGameInstance.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 
 UBFGameInstance::UBFGameInstance()
 {
@@ -22,6 +24,7 @@ void UBFGameInstance::RecordRoundResult(int32 RoundNumber, int32 WinningTeam)
 	UE_LOG(LogTemp, Log, TEXT("[BFGameInstance] Round %d result recorded. Winner: Team %d"),
 		RoundNumber, WinningTeam);
 }
+
 
 void UBFGameInstance::AddTeamScore(int32 TeamId, int32 Score)
 {
@@ -65,4 +68,60 @@ int32 UBFGameInstance::GetOverallWinner() const
 	}
 
 	return WinnerTeam;
+}
+
+void UBFGameInstance::SaveLobbyData(const TArray<FBFPlayerTeamInfo>& PlayerInfos, int32 TeamCount)
+{
+	SavedPlayerInfos = PlayerInfos;
+	SavedTeamCount = TeamCount;
+
+	UE_LOG(LogTemp, Log, TEXT("[BFGameInstance] SaveLobbyData - Saved %d players, %d teams"),
+		SavedPlayerInfos.Num(), SavedTeamCount);
+
+	for (const FBFPlayerTeamInfo& Info : SavedPlayerInfos)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[BFGameInstance] - Player %d: Name=%s, Team=%d, Role=%d, UniqueNetId=%s"),
+			Info.PlayerId, *Info.PlayerName, Info.TeamId, (uint8)Info.Role, *Info.UniqueNetId);
+	}
+}
+
+FBFPlayerTeamInfo UBFGameInstance::GetSavedPlayerInfo(int32 PlayerId) const
+{
+	for (const FBFPlayerTeamInfo& Info : SavedPlayerInfos)
+	{
+		if (Info.PlayerId == PlayerId)
+		{
+			return Info;
+		}
+	}
+	return FBFPlayerTeamInfo();
+}
+
+FBFPlayerTeamInfo UBFGameInstance::GetSavedPlayerInfoByUniqueId(const FString& UniqueNetId) const
+{
+	for (const FBFPlayerTeamInfo& Info : SavedPlayerInfos)
+	{
+		if (Info.UniqueNetId == UniqueNetId)
+		{
+			return Info;
+		}
+	}
+	return FBFPlayerTeamInfo();
+}
+
+FString UBFGameInstance::GetUniqueNetIdFromPlayer(APlayerController* PlayerController)
+{
+	if (PlayerController && PlayerController->PlayerState)
+	{
+		return PlayerController->PlayerState->GetUniqueId().ToString();
+	}
+	return TEXT("");
+}
+
+void UBFGameInstance::ClearLobbyData()
+{
+	SavedPlayerInfos.Empty();
+	SavedTeamCount = 4;
+
+	UE_LOG(LogTemp, Log, TEXT("[BFGameInstance] Lobby data cleared."));
 }

@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "System/BFSessionSubsystem.h"
+#include "System/BFGameInstance.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
 #include "Online/OnlineSessionNames.h"
@@ -68,13 +69,26 @@ int32 UBFSessionSubsystem::GetSessionCount() const
 
 void UBFSessionSubsystem::CreateSession(int32 InMaxPlayers, bool bInIsLAN)
 {
-    // 기존 함수 유지 - 세션 이름 없이 생성
-    CreateSessionWithName(TEXT(""), InMaxPlayers, bInIsLAN);
+    // 기존 함수 유지 - 세션 이름 없이 생성 (기본 4팀)
+    CreateSessionWithName(TEXT(""), 4, bInIsLAN);
 }
 
-void UBFSessionSubsystem::CreateSessionWithName(const FString& InSessionName, int32 InMaxPlayers, bool bInIsLAN)
+void UBFSessionSubsystem::CreateSessionWithName(const FString& InSessionName, int32 InTeamCount, bool bInIsLAN)
 {
     CurrentSessionName = InSessionName;
+
+    // 팀 개수 유효성 체크 (1~8팀)
+    int32 TeamCount = FMath::Clamp(InTeamCount, 1, 8);
+
+    // MaxPlayers = TeamCount * 2 (팀당 2명 고정)
+    int32 MaxPlayers = TeamCount * 2;
+
+    // GameInstance에 팀 개수 저장 (로비에서 불러와서 사용)
+    if (UBFGameInstance* GI = Cast<UBFGameInstance>(GetGameInstance()))
+    {
+        GI->SetPendingTeamCount(TeamCount);
+        UE_LOG(LogTemp, Log, TEXT("[BFSession] PendingTeamCount set to %d"), TeamCount);
+    }
 
     IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
     if (Subsystem)
@@ -100,7 +114,7 @@ void UBFSessionSubsystem::CreateSessionWithName(const FString& InSessionName, in
     TSharedPtr<FOnlineSessionSettings> SessionSettings = MakeShareable(new FOnlineSessionSettings());
 
     SessionSettings->bIsLANMatch = bInIsLAN;
-    SessionSettings->NumPublicConnections = InMaxPlayers;
+    SessionSettings->NumPublicConnections = MaxPlayers;
     SessionSettings->bAllowJoinInProgress = true;
     SessionSettings->bAllowInvites = true;
     SessionSettings->bShouldAdvertise = true;
@@ -121,11 +135,17 @@ void UBFSessionSubsystem::CreateSessionWithName(const FString& InSessionName, in
         SessionSettings->Set(FName("HOST_NAME"), PlayerName, EOnlineDataAdvertisementType::ViaOnlineService);
     }
 
+    // 팀 개수도 세션 설정에 저장 (나중에 필요하면 사용)
+    SessionSettings->Set(FName("TEAM_COUNT"), TeamCount, EOnlineDataAdvertisementType::ViaOnlineService);
+
     const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
     if (LocalPlayer)
     {
         SessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
     }
+
+    UE_LOG(LogTemp, Log, TEXT("[BFSession] Creating session: %s, Teams: %d, MaxPlayers: %d"),
+        *InSessionName, TeamCount, MaxPlayers);
 }
 
 void UBFSessionSubsystem::OnCreateSessionCompleteInternal(FName SessionName, bool bWasSuccessful)
@@ -136,7 +156,7 @@ void UBFSessionSubsystem::OnCreateSessionCompleteInternal(FName SessionName, boo
         if (World)
         {
             //맵 경로가 실제 파일 위치와 정확히
-            World->ServerTravel(TEXT("/Game/Colab/JSW/Maps/Maps_Test1Arrival?listen"));
+            World->ServerTravel(TEXT("/Game/Colab/JSW/Maps/Maps_Lobby?listen"));
         }
     }
 

@@ -150,27 +150,41 @@ void ABFGameState::SetPlayerTeam(int32 PlayerId, uint8 TeamId)
 		}
 	}
 
+	// 자동 역할 부여 (Gunner 우선, 이미 있으면 Pusher)
+	EBFPlayerRole AutoRole = EBFPlayerRole::None;
+	if (TeamId != 255)
+	{
+		if (IsRoleAvailableInTeam(TeamId, EBFPlayerRole::Gunner))
+		{
+			AutoRole = EBFPlayerRole::Gunner;
+		}
+		else if (IsRoleAvailableInTeam(TeamId, EBFPlayerRole::Pusher))
+		{
+			AutoRole = EBFPlayerRole::Pusher;
+		}
+	}
+
 	// 기존 정보 찾기
 	for (FBFPlayerTeamInfo& Info : PlayerTeamInfos)
 	{
 		if (Info.PlayerId == PlayerId)
 		{
-			// 팀 변경 시 역할 초기화
-			if (Info.TeamId != TeamId)
-			{
-				Info.Role = EBFPlayerRole::None;
-			}
 			Info.TeamId = TeamId;
+			Info.Role = AutoRole;
 			OnRep_PlayerTeamInfos();
 			OnPlayerTeamChanged.Broadcast(PlayerId, TeamId);
+			OnPlayerRoleChanged.Broadcast(PlayerId, AutoRole);
+			UE_LOG(LogTemp, Warning, TEXT("[BFGameState] SetPlayerTeam - Updated Player %d to Team %d, Role %d"), PlayerId, TeamId, (uint8)AutoRole);
 			return;
 		}
 	}
 
 	// 새로 추가
-	PlayerTeamInfos.Add(FBFPlayerTeamInfo(PlayerId, TEXT(""), TeamId));
+	PlayerTeamInfos.Add(FBFPlayerTeamInfo(PlayerId, TEXT(""), TeamId, AutoRole));
 	OnRep_PlayerTeamInfos();
 	OnPlayerTeamChanged.Broadcast(PlayerId, TeamId);
+	OnPlayerRoleChanged.Broadcast(PlayerId, AutoRole);
+	UE_LOG(LogTemp, Warning, TEXT("[BFGameState] SetPlayerTeam - Added Player %d to Team %d, Role %d"), PlayerId, TeamId, (uint8)AutoRole);
 }
 
 void ABFGameState::RemovePlayerTeamInfo(int32 PlayerId)
@@ -265,10 +279,38 @@ FString ABFGameState::GetPlayerName(int32 PlayerId) const
 	return TEXT("");
 }
 
+void ABFGameState::SetPlayerUniqueNetId(int32 PlayerId, const FString& UniqueNetId)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	for (FBFPlayerTeamInfo& Info : PlayerTeamInfos)
+	{
+		if (Info.PlayerId == PlayerId)
+		{
+			Info.UniqueNetId = UniqueNetId;
+			OnRep_PlayerTeamInfos();
+			UE_LOG(LogTemp, Log, TEXT("[BFGameState] Player %d UniqueNetId set to: %s"), PlayerId, *UniqueNetId);
+			return;
+		}
+	}
+
+	// 없으면 새로 추가
+	FBFPlayerTeamInfo NewInfo;
+	NewInfo.PlayerId = PlayerId;
+	NewInfo.UniqueNetId = UniqueNetId;
+	PlayerTeamInfos.Add(NewInfo);
+	OnRep_PlayerTeamInfos();
+	UE_LOG(LogTemp, Log, TEXT("[BFGameState] Player %d added with UniqueNetId: %s"), PlayerId, *UniqueNetId);
+}
+
 void ABFGameState::OnRep_PlayerTeamInfos()
 {
-	// 클라이언트에서 팀 정보 변경 시 UI 업데이트 등에 활용
-	// 개별 변경 이벤트는 OnPlayerTeamChanged로 처리
+	// 클라이언트에서 팀 정보 복제 수신 시 UI 갱신을 위해 Broadcast
+	// (-1, 255)는 "전체 갱신" 신호 - UI에서 FullRefresh 처리
+	OnPlayerTeamChanged.Broadcast(-1, 255);
 }
 
 void ABFGameState::SetTeamCount(int32 NewTeamCount)
@@ -416,4 +458,16 @@ EBFSpawnLocation ABFGameState::GetTeamSpawnLocation(uint8 TeamId) const
 		}
 	}
 	return EBFSpawnLocation::North;  // 기본값
+}
+
+bool ABFGameState::HasPlayerInfo(int32 PlayerId) const
+{
+	for (const FBFPlayerTeamInfo& Info : PlayerTeamInfos)
+	{
+		if (Info.PlayerId == PlayerId)
+		{
+			return true;
+		}
+	}
+	return false;
 }

@@ -71,9 +71,13 @@ struct FBFPlayerTeamInfo
 	UPROPERTY(BlueprintReadOnly, Category = "BF|Team")
 	EBFPlayerRole Role = EBFPlayerRole::None;
 
+	// 레벨 이동 후에도 플레이어 식별용 (PlayerId는 레벨마다 바뀜)
+	UPROPERTY(BlueprintReadOnly, Category = "BF|Team")
+	FString UniqueNetId;
+
 	FBFPlayerTeamInfo() {}
-	FBFPlayerTeamInfo(int32 InPlayerId, const FString& InPlayerName = TEXT(""), uint8 InTeamId = 255, EBFPlayerRole InRole = EBFPlayerRole::None)
-		: PlayerId(InPlayerId), PlayerName(InPlayerName), TeamId(InTeamId), Role(InRole) {}
+	FBFPlayerTeamInfo(int32 InPlayerId, const FString& InPlayerName = TEXT(""), uint8 InTeamId = 255, EBFPlayerRole InRole = EBFPlayerRole::None, const FString& InUniqueNetId = TEXT(""))
+		: PlayerId(InPlayerId), PlayerName(InPlayerName), TeamId(InTeamId), Role(InRole), UniqueNetId(InUniqueNetId) {}
 };
 
 // 델리게이트 선언
@@ -133,6 +137,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BF|GameState")
 	void SetPlayerName(int32 PlayerId, const FString& NewName);
 
+	// 플레이어 UniqueNetId 설정 (서버에서만 호출)
+	UFUNCTION(BlueprintCallable, Category = "BF|GameState")
+	void SetPlayerUniqueNetId(int32 PlayerId, const FString& UniqueNetId);
+
 	// ===== Getter 함수 (모든 클라이언트) =====
 
 	UFUNCTION(BlueprintPure, Category = "BF|GameState")
@@ -185,6 +193,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "BF|GameState")
 	TArray<FBFPlayerTeamInfo> GetAllPlayerInfos() const { return PlayerTeamInfos; }
+
+	UFUNCTION(BlueprintPure, Category = "BF|GameState")
+	bool HasPlayerInfo(int32 PlayerId) const;
 
 	// ===== 역할 관련 Getter =====
 

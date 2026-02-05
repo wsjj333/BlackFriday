@@ -20,6 +20,40 @@ ABFGameMode::ABFGameMode()
 	bStartPlayersAsSpectators = false;
 }
 
+void ABFGameMode::BeginPlay()
+{
+	Super::BeginPlay();
+
+	UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] ========== BeginPlay =========="));
+
+	// ServerTravel 후 서버 플레이어(호스트)는 PostLogin이 호출되지 않음
+	// 이미 존재하는 플레이어를 ConnectedPlayers와 GameState에 등록
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (PC && !ConnectedPlayers.Contains(PC))
+		{
+			ConnectedPlayers.AddUnique(PC);
+
+			if (PC->PlayerState && BFGameState)
+			{
+				int32 PlayerId = PC->PlayerState->GetPlayerId();
+
+				// 이미 등록된 플레이어인지 확인 (GameInstance에서 로비 데이터 복원)
+				if (!BFGameState->HasPlayerInfo(PlayerId))
+				{
+					BFGameState->SetPlayerTeam(PlayerId, 255);
+
+					FString UniqueNetId = PC->PlayerState->GetUniqueId().ToString();
+					BFGameState->SetPlayerUniqueNetId(PlayerId, UniqueNetId);
+				}
+			}
+
+			UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] BeginPlay - Registered existing player: %s"), *PC->GetName());
+		}
+	}
+}
+
 void ABFGameMode::InitGameState()
 {
 	Super::InitGameState();
@@ -30,6 +64,14 @@ void ABFGameMode::InitGameState()
 	{
 		// 카운트다운 완료 델리게이트 바인딩
 		BFGameState->OnCountdownFinished.AddDynamic(this, &ABFGameMode::HandleCountdownFinished);
+
+		// GameInstance에서 팀 개수 불러와서 적용 (세션 생성 시 설정한 값)
+		if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
+		{
+			int32 PendingTeamCount = GI->GetPendingTeamCount();
+			BFGameState->SetTeamCount(PendingTeamCount);
+			UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Team count set to %d from GameInstance"), PendingTeamCount);
+		}
 	}
 }
 
@@ -51,6 +93,10 @@ void ABFGameMode::PostLogin(APlayerController* NewPlayer)
 			if (BFGameState)
 			{
 				BFGameState->SetPlayerTeam(PlayerId, 255); // 미선택 상태로 등록
+
+				// UniqueNetId 저장 (레벨 이동 후에도 플레이어 식별 가능)
+				FString UniqueNetId = NewPlayer->PlayerState->GetUniqueId().ToString();
+				BFGameState->SetPlayerUniqueNetId(PlayerId, UniqueNetId);
 			}
 		}
 
@@ -109,6 +155,24 @@ void ABFGameMode::NotifyPlayerReady(APlayerController* Player)
 	}
 }
 
+void ABFGameMode::CancelPlayerReady(APlayerController* Player)
+{
+	if (!Player)
+	{
+		return;
+	}
+
+	ReadyPlayers.Remove(Player);
+
+	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Player cancelled ready. Ready: %d / Connected: %d"),
+		ReadyPlayers.Num(), ConnectedPlayers.Num());
+}
+
+bool ABFGameMode::IsPlayerReady(APlayerController* Player) const
+{
+	return Player && ReadyPlayers.Contains(Player);
+}
+
 bool ABFGameMode::AreAllPlayersReady() const
 {
 	// 최소 인원 체크
@@ -151,7 +215,23 @@ void ABFGameMode::CheckAndStartGame()
 
 void ABFGameMode::HostStartGame()
 {
-	// 서버에서만 실행 (GameMode는 서버에만 존재하므로 추가 체크 불필요)
+	// 시작 조건 체크
+	if (!AreAllPlayersReady())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] Cannot start game - not all players ready!"));
+		UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] Connected: %d, MinRequired: %d"), ConnectedPlayers.Num(), MinPlayersToStart);
+		return;
+	}
+
+	// GameInstance에 로비 데이터 저장 (레벨 이동 후에도 유지)
+	if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
+	{
+		if (BFGameState)
+		{
+			GI->SaveLobbyData(BFGameState->GetAllPlayerInfos(), BFGameState->GetTotalTeamCount());
+			UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Lobby data saved to GameInstance"));
+		}
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Host starting game - traveling to Mart level"));
 
@@ -366,4 +446,100 @@ void ABFGameMode::RequestSetPlayerName(APlayerController* Player, const FString&
 	BFGameState->SetPlayerName(PlayerId, NewName);
 
 	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Player %d name set to: %s"), PlayerId, *NewName);
+}
+
+APlayerController* ABFGameMode::GetPlayerControllerByRoleInTeam(uint8 TeamId, EBFPlayerRole InRole)
+{
+	UBFGameInstance* GI = GetGameInstance<UBFGameInstance>();
+	if (!GI)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] GetPlayerControllerByRoleInTeam - GameInstance is NULL"));
+		return nullptr;
+	}
+
+	// 저장된 로비 데이터에서 해당 팀/역할의 UniqueNetId 찾기
+	FString TargetUniqueNetId;
+	for (const FBFPlayerTeamInfo& Info : GI->GetSavedPlayerInfos())
+	{
+		if (Info.TeamId == TeamId && Info.Role == InRole)
+		{
+			TargetUniqueNetId = Info.UniqueNetId;
+			break;
+		}
+	}
+
+	if (TargetUniqueNetId.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] GetPlayerControllerByRoleInTeam - No player found for Team %d, Role %d"), TeamId, (uint8)InRole);
+		return nullptr;
+	}
+
+	// 현재 접속한 플레이어 중에서 UniqueNetId가 일치하는 PC 찾기
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (PC && PC->PlayerState)
+		{
+			FString CurrentUniqueNetId = PC->PlayerState->GetUniqueId().ToString();
+			if (CurrentUniqueNetId == TargetUniqueNetId)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[BFGameMode] GetPlayerControllerByRoleInTeam - Found PC %s for Team %d, Role %d"),
+					*PC->GetName(), TeamId, (uint8)InRole);
+				return PC;
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] GetPlayerControllerByRoleInTeam - PC not found for UniqueNetId: %s"), *TargetUniqueNetId);
+	return nullptr;
+}
+
+TArray<APlayerController*> ABFGameMode::GetAllPlayerControllersInTeam(uint8 TeamId)
+{
+	TArray<APlayerController*> Result;
+
+	UBFGameInstance* GI = GetGameInstance<UBFGameInstance>();
+	if (!GI)
+	{
+		return Result;
+	}
+
+	// 해당 팀의 모든 UniqueNetId 수집
+	TArray<FString> TeamUniqueNetIds;
+	for (const FBFPlayerTeamInfo& Info : GI->GetSavedPlayerInfos())
+	{
+		if (Info.TeamId == TeamId)
+		{
+			TeamUniqueNetIds.Add(Info.UniqueNetId);
+		}
+	}
+
+	// 현재 접속한 플레이어 중에서 매칭
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (PC && PC->PlayerState)
+		{
+			FString CurrentUniqueNetId = PC->PlayerState->GetUniqueId().ToString();
+			if (TeamUniqueNetIds.Contains(CurrentUniqueNetId))
+			{
+				Result.Add(PC);
+			}
+		}
+	}
+
+	return Result;
+}
+
+TArray<APlayerController*> ABFGameMode::GetAllConnectedPlayerControllers() const
+{
+	TArray<APlayerController*> Result;
+	for (const TObjectPtr<APlayerController>& PC : ConnectedPlayers)
+	{
+		if (PC)
+		{
+			Result.Add(PC.Get());
+		}
+	}
+	return Result;
 }

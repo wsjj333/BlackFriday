@@ -35,6 +35,10 @@ public:
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "BF|Player")
 	void ServerNotifyReady();
 
+	// 준비 취소
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "BF|Player")
+	void ServerCancelReady();
+
 	// 호스트 전용: 게임 시작 요청
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "BF|Player")
 	void ServerHostStartGame();

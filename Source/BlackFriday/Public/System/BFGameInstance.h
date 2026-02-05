@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
+#include "BFGameState.h"
 #include "BFGameInstance.generated.h"
 
 // 라운드 결과 구조체
@@ -67,6 +68,43 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BF|Game")
 	int32 GetOverallWinner() const;
 
+	// ===== 세션 생성 시 설정 (로비 진입 전) =====
+
+	// 세션 생성 시 팀 개수 설정 (로비에서 불러와서 사용)
+	UPROPERTY(BlueprintReadWrite, Category = "BF|Session")
+	int32 PendingTeamCount = 4;
+
+	UFUNCTION(BlueprintCallable, Category = "BF|Session")
+	void SetPendingTeamCount(int32 InTeamCount) { PendingTeamCount = FMath::Clamp(InTeamCount, 1, 8); }
+
+	UFUNCTION(BlueprintPure, Category = "BF|Session")
+	int32 GetPendingTeamCount() const { return PendingTeamCount; }
+
+	// ===== 로비 데이터 저장 (레벨 이동 시 유지) =====
+
+	UFUNCTION(BlueprintCallable, Category = "BF|Lobby")
+	void SaveLobbyData(const TArray<FBFPlayerTeamInfo>& PlayerInfos, int32 TeamCount);
+
+	UFUNCTION(BlueprintPure, Category = "BF|Lobby")
+	TArray<FBFPlayerTeamInfo> GetSavedPlayerInfos() const { return SavedPlayerInfos; }
+
+	UFUNCTION(BlueprintPure, Category = "BF|Lobby")
+	int32 GetSavedTeamCount() const { return SavedTeamCount; }
+
+	UFUNCTION(BlueprintPure, Category = "BF|Lobby")
+	FBFPlayerTeamInfo GetSavedPlayerInfo(int32 PlayerId) const;
+
+	// UniqueNetId로 저장된 플레이어 정보 찾기 (레벨 이동 후 사용)
+	UFUNCTION(BlueprintPure, Category = "BF|Lobby")
+	FBFPlayerTeamInfo GetSavedPlayerInfoByUniqueId(const FString& UniqueNetId) const;
+
+	// PlayerController에서 UniqueNetId 문자열 가져오기 (Blueprint용 헬퍼)
+	UFUNCTION(BlueprintPure, Category = "BF|Lobby")
+	static FString GetUniqueNetIdFromPlayer(APlayerController* PlayerController);
+
+	UFUNCTION(BlueprintCallable, Category = "BF|Lobby")
+	void ClearLobbyData();
+
 protected:
 	// 라운드별 결과 저장
 	UPROPERTY()
@@ -79,4 +117,12 @@ protected:
 	// 팀별 라운드 승리 횟수
 	UPROPERTY()
 	TMap<int32, int32> TeamRoundWins;
+
+	// ===== 로비 데이터 (레벨 이동 시 유지) =====
+
+	UPROPERTY()
+	TArray<FBFPlayerTeamInfo> SavedPlayerInfos;
+
+	UPROPERTY()
+	int32 SavedTeamCount = 4;
 };

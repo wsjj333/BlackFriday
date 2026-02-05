@@ -24,6 +24,7 @@ public:
 	ABFGameMode();
 
 	// ===== 오버라이드 =====
+	virtual void BeginPlay() override;
 	virtual void InitGameState() override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
@@ -55,9 +56,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BF|GameMode")
 	void AdvanceToNextRound();
 
-	// 플레이어 로딩 완료 알림 (클라이언트에서 RPC로 호출)
+	// 플레이어 레디 알림 (클라이언트에서 RPC로 호출)
 	UFUNCTION(BlueprintCallable, Category = "BF|GameMode")
 	void NotifyPlayerReady(APlayerController* Player);
+
+	// 플레이어 레디 취소 (클라이언트에서 RPC로 호출)
+	UFUNCTION(BlueprintCallable, Category = "BF|GameMode")
+	void CancelPlayerReady(APlayerController* Player);
+
+	// 플레이어가 레디 상태인지 확인
+	UFUNCTION(BlueprintPure, Category = "BF|GameMode")
+	bool IsPlayerReady(APlayerController* Player) const;
 
 	// ===== 팀 관련 =====
 
@@ -103,9 +112,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BF|GameMode")
 	int32 RoundCountdownSeconds = 3;
 
-	// 자동 시작 활성화
+	// 자동 시작 활성화 (false = 호스트가 수동으로 시작)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BF|GameMode")
-	bool bAutoStartWhenReady = true;
+	bool bAutoStartWhenReady = false;
 
 	// ===== 델리게이트 =====
 
@@ -131,6 +140,20 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "BF|GameMode")
 	bool IsWaitingForPlayers() const { return bWaitingForPlayers; }
+
+	// ===== 마트 맵 스폰용 헬퍼 함수 =====
+
+	// 팀의 특정 역할 플레이어 컨트롤러 가져오기 (UniqueNetId로 매칭)
+	UFUNCTION(BlueprintCallable, Category = "BF|GameMode")
+	APlayerController* GetPlayerControllerByRoleInTeam(uint8 TeamId, EBFPlayerRole InRole);
+
+	// 팀의 모든 플레이어 컨트롤러 가져오기 (UniqueNetId로 매칭)
+	UFUNCTION(BlueprintCallable, Category = "BF|GameMode")
+	TArray<APlayerController*> GetAllPlayerControllersInTeam(uint8 TeamId);
+
+	// 현재 접속한 모든 플레이어 컨트롤러 가져오기
+	UFUNCTION(BlueprintPure, Category = "BF|GameMode")
+	TArray<APlayerController*> GetAllConnectedPlayerControllers() const;
 
 protected:
 	// GameState 캐시
