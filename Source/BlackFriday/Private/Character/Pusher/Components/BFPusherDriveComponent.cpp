@@ -3,8 +3,6 @@
 #include "Character/Pusher/BFPusher.h"
 #include "Vehicle/Cart/BFCartPawn.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
-
-#include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Components/SceneComponent.h"
 
@@ -140,7 +138,7 @@ void UBFPusherDriveComponent::SetOrientToMovement(const bool bEnable)
 
 void UBFPusherDriveComponent::ServerToggleDrivingMode_Implementation()
 {
-	const ABFPusher* Pusher = GetPusher();
+	ABFPusher* Pusher = GetPusher();
 	if (!Pusher) return;
 
 	bIsDriving = !bIsDriving;
@@ -215,13 +213,14 @@ void UBFPusherDriveComponent::HandleDrivingStateChanged(const bool bNowDriving)
 
 void UBFPusherDriveComponent::ApplyOrientToMovement(const bool bEnable)
 {
-	const ABFPusher* Pusher = GetPusher();
+	ABFPusher* Pusher = GetPusher();
 	if (!Pusher) return;
-
-	UCharacterMovementComponent* Move = Pusher->GetCharacterMovement();
-	if (!Move) return;
-
-	Move->bOrientRotationToMovement = bEnable;
+	
+	// TODO: Pawn에서 구현해야하나?
+	// UCharacterMovementComponent* Move = Pusher->GetCharacterMovement();
+	// if (!Move) return;
+	//
+	// Move->bOrientRotationToMovement = bEnable;
 }
 
 void UBFPusherDriveComponent::ApplyDrivingAttachment_Server(const bool bAttach)
@@ -240,6 +239,8 @@ void UBFPusherDriveComponent::ApplyDrivingAttachment_Server(const bool bAttach)
 
 		USceneComponent* StandAnker = Cart->GetPusherStandAnkerComponent();
 		if (!StandAnker) return;
+		
+		Pusher->SetPhysicsEnabled(false);
 
 		const FAttachmentTransformRules Rules(
 			EAttachmentRule::SnapToTarget,
@@ -248,9 +249,12 @@ void UBFPusherDriveComponent::ApplyDrivingAttachment_Server(const bool bAttach)
 			true);
 
 		Pusher->AttachToComponent(StandAnker, Rules);
+		
+		Pusher->AdjustActorLocationByCapsuleHalfHeight();
 	}
 	else
 	{
 		Pusher->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		Pusher->SetPhysicsEnabled(true);
 	}
 }

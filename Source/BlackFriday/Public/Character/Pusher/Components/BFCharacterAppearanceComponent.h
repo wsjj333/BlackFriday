@@ -5,7 +5,7 @@
 #include "Data/Enums/BFCharacterType.h"
 #include "BFCharacterAppearanceComponent.generated.h"
 
-class ABFCharacterBase;
+class ABFPawnBase;
 class USkeletalMesh;
 class USkeletalMeshComponent;
 
@@ -20,18 +20,18 @@ public:
 	UBFCharacterAppearanceComponent();
 
 	// ---- Public API ----
-	UFUNCTION(BlueprintCallable, Category="BF|Appearance")
+	UFUNCTION(BlueprintCallable, Category="BF|Visual")
 	void SetCharacterType(EBFCharacterType NewType);
 
-	UFUNCTION(BlueprintCallable, Category="BF|Appearance")
+	UFUNCTION(BlueprintCallable, Category="BF|Visual")
 	EBFCharacterType GetCharacterType() const { return CharacterType; }
 
 	/** BP에서 데이터 세팅 편하게 하려고 열어둠(원하면 EditDefaultsOnly로 좁혀도 됨) */
-	UPROPERTY(EditDefaultsOnly, Category="BF|Appearance")
+	UPROPERTY(EditDefaultsOnly, Category="BF|Visual")
 	TMap<EBFCharacterType, TSoftObjectPtr<USkeletalMesh>> CharacterMeshMap;
 	
 	/** 외형(메시) 적용이 끝났을 때(서버/클라 모두) 호출되는 이벤트 */
-	UPROPERTY(BlueprintAssignable, Category="BF|Appearance")
+	UPROPERTY(BlueprintAssignable, Category="BF|Visual")
 	FOnAppearanceApplied OnAppearanceApplied;
 
 protected:
@@ -41,12 +41,12 @@ protected:
 private:
 	// ---- Owner cache ----
 	UPROPERTY(Transient)
-	TObjectPtr<ABFCharacterBase> OwnerCharacter;
+	TObjectPtr<ABFPawnBase> OwnerCharacter;
 
-	ABFCharacterBase* GetOwnerCharacter() const;
+	ABFPawnBase* GetOwnerCharacter() const;
 
 	// ---- Replicated State ----
-	UPROPERTY(ReplicatedUsing=OnRep_CharacterType, EditDefaultsOnly, Category="BF|Appearance")
+	UPROPERTY(ReplicatedUsing=OnRep_CharacterType, EditDefaultsOnly, Category="BF|Visual")
 	EBFCharacterType CharacterType = EBFCharacterType::AfroHairMan;
 
 	// ---- Rep Notify ----

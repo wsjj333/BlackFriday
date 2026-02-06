@@ -185,10 +185,10 @@ FVector UBFNetworkPhysicsComponent::GetReplicatedVelocity() const
 {
 	if (GetOwner() && GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
 	{
-		return (FVector)RepStateOwner.LinVel;
+		return RepStateOwner.LinVel;
 	}
 
-	return (FVector)RepState.LinVel;
+	return RepState.LinVel;
 }
 
 /*

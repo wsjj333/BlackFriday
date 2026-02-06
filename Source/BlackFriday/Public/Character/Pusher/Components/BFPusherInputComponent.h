@@ -7,6 +7,7 @@
 #include "BFPusherInputComponent.generated.h"
 
 
+class IBFInputSink;
 class ABFPusher;
 struct FInputActionValue;
 class UInputAction;
@@ -25,34 +26,37 @@ public:
 	void BindInput(UInputComponent* PlayerInputComponent);
 	
 	void EnsureMappingContext();
+	
+	// Sink 주입: Owner가 조립 시 호출
+	void SetInputSink(const TScriptInterface<IBFInputSink>& InInputSink);
 
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 	
 	// ----- Input Assets -----
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
+	UPROPERTY(EditDefaultsOnly, Category="BF|Control")
 	TObjectPtr<UInputMappingContext> PusherMappingContext;
 
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
+	UPROPERTY(EditDefaultsOnly, Category="BF|Control")
 	TObjectPtr<UInputAction> LookAction;
 
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
+	UPROPERTY(EditDefaultsOnly, Category="BF|Control")
 	TObjectPtr<UInputAction> MoveAction;
 
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
+	UPROPERTY(EditDefaultsOnly, Category="BF|Control")
 	TObjectPtr<UInputAction> JumpAction;
 
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
+	UPROPERTY(EditDefaultsOnly, Category="BF|Control")
 	TObjectPtr<UInputAction> DriveModeAction;
 	
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
+	UPROPERTY(EditDefaultsOnly, Category="BF|Control")
 	TObjectPtr<UInputAction> AccelerationAction;
 	
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
+	UPROPERTY(EditDefaultsOnly, Category="BF|Control")
 	TObjectPtr<UInputAction> SteerAction;
 	
-	UPROPERTY(EditDefaultsOnly, Category="BF|Input")
+	UPROPERTY(EditDefaultsOnly, Category="BF|Control")
 	TObjectPtr<UInputAction> DriftAction;
 	
 private:
@@ -79,4 +83,8 @@ private:
 
 	// 로컬만 MappingContext 추가(기존 BeginPlay 로직을 InputComp로 이동)
 	void AddMappingContextIfLocal();
+	
+	// UInterface를 안전하게 들고 있게 해줌(GC 안전)
+	UPROPERTY()
+	TScriptInterface<IBFInputSink> InputSink;
 };

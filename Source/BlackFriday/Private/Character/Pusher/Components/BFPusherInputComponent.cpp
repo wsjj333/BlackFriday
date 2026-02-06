@@ -7,11 +7,12 @@
 #include "InputActionValue.h"
 
 // For movement/look math
+#include "Character/Pusher/BFPusher.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "GameFramework/PlayerController.h"
 
-#include "Character/Pusher/BFPusher.h"
 #include "Character/Pusher/Components/BFPusherDriveComponent.h"
+#include "Interfaces/BFInputSink.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
 
 
@@ -169,6 +170,11 @@ void UBFPusherInputComponent::EnsureMappingContext()
 	AddMappingContextIfLocal();
 }
 
+void UBFPusherInputComponent::SetInputSink(const TScriptInterface<IBFInputSink>& InInputSink)
+{
+	InputSink = InInputSink;
+}
+
 // -------------------- Bound Functions --------------------
 
 void UBFPusherInputComponent::HandleMoveInput(const FInputActionValue& Value)
@@ -178,25 +184,30 @@ void UBFPusherInputComponent::HandleMoveInput(const FInputActionValue& Value)
 	{
 		return;
 	}
-
+	
 	// 기존 코드와 동일: 운전 중이면 캐릭터 이동 입력 무시
 	if (Pusher->IsDriving())
 	{
 		return;
 	}
-
+	
 	const FVector2D MoveAxis = Value.Get<FVector2D>();
 	const float MoveX = MoveAxis.X;
 	const float MoveY = MoveAxis.Y;
-
+	
 	const FRotator ControlRot = Pusher->GetControlRotation();
 	FRotator RotForMove(0.0f, ControlRot.Yaw, 0.0f);
-
+	
 	FVector WorldDirection = UKismetMathLibrary::GetRightVector(RotForMove);
 	Pusher->AddMovementInput(WorldDirection, MoveX);
-
+	
 	WorldDirection = UKismetMathLibrary::GetForwardVector(RotForMove);
 	Pusher->AddMovementInput(WorldDirection, MoveY);
+	
+	if (InputSink)
+	{
+		InputSink->SetMoveInput(MoveAxis);
+	}
 }
 
 void UBFPusherInputComponent::HandleLookInput(const FInputActionValue& Value)
@@ -210,25 +221,30 @@ void UBFPusherInputComponent::HandleLookInput(const FInputActionValue& Value)
 	const FVector2D LookAxis = Value.Get<FVector2D>();
 	const float LookX = LookAxis.X;
 	const float LookY = LookAxis.Y;
-
+	
+	APlayerController* PC = Cast<APlayerController>(Pusher->GetController());
+	if (!PC || !PC->IsLocalController())
+	{
+		return;
+	}
+	
 	if (Pusher->IsDriving())
 	{
-		APlayerController* PC = Cast<APlayerController>(Pusher->GetController());
-		if (!PC || !PC->IsLocalController())
-		{
-			return;
-		}
-
 		FRotator ControlRot = PC->GetControlRotation();
 		ControlRot.Yaw += LookX;
 		ControlRot.Pitch += LookY;
-
+	
 		PC->SetControlRotation(ControlRot);
 	}
 	else
 	{
 		Pusher->AddControllerYawInput(LookX);
 		Pusher->AddControllerPitchInput(LookY);
+		
+		if (InputSink)
+		{
+			InputSink->SetControlYawDegrees(PC->GetControlRotation().Yaw);
+		}
 	}
 }
 
@@ -237,7 +253,12 @@ void UBFPusherInputComponent::OnJumpPressed(const FInputActionValue& /*Value*/)
 	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher) return;
 
-	Pusher->Jump();
+	// Pusher->Jump();
+	
+	if (InputSink)
+	{
+		InputSink->SetJumpHeld(true);
+	}
 }
 
 void UBFPusherInputComponent::OnJumpReleased(const FInputActionValue& /*Value*/)
@@ -245,7 +266,12 @@ void UBFPusherInputComponent::OnJumpReleased(const FInputActionValue& /*Value*/)
 	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher) return;
 
-	Pusher->StopJumping();
+	// Pusher->StopJumping();
+	
+	if (InputSink)
+	{
+		InputSink->SetJumpHeld(false);
+	}
 }
 
 void UBFPusherInputComponent::OnToggleDriveModePressed(const FInputActionValue& /*Value*/)
@@ -267,7 +293,7 @@ static UBFCartMovementComponent* ResolveCartMoveComp(const ABFPusher* Pusher)
 
 void UBFPusherInputComponent::OnAccelTriggered(const FInputActionValue& Value)
 {
-	const ABFPusher* Pusher = GetOwnerPusher();
+	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher || !Pusher->IsDriving()) return;
 
 	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
@@ -278,7 +304,7 @@ void UBFPusherInputComponent::OnAccelTriggered(const FInputActionValue& Value)
 
 void UBFPusherInputComponent::OnAccelEnded(const FInputActionValue& Value)
 {
-	const ABFPusher* Pusher = GetOwnerPusher();
+	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher || !Pusher->IsDriving()) return;
 
 	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
@@ -289,7 +315,7 @@ void UBFPusherInputComponent::OnAccelEnded(const FInputActionValue& Value)
 
 void UBFPusherInputComponent::OnSteerTriggered(const FInputActionValue& Value)
 {
-	const ABFPusher* Pusher = GetOwnerPusher();
+	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher || !Pusher->IsDriving()) return;
 
 	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
@@ -300,7 +326,7 @@ void UBFPusherInputComponent::OnSteerTriggered(const FInputActionValue& Value)
 
 void UBFPusherInputComponent::OnSteerEnded(const FInputActionValue& Value)
 {
-	const ABFPusher* Pusher = GetOwnerPusher();
+	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher || !Pusher->IsDriving()) return;
 
 	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
@@ -311,7 +337,7 @@ void UBFPusherInputComponent::OnSteerEnded(const FInputActionValue& Value)
 
 void UBFPusherInputComponent::OnDriftStarted(const FInputActionValue& Value)
 {
-	const ABFPusher* Pusher = GetOwnerPusher();
+	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher || !Pusher->IsDriving()) return;
 
 	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
@@ -322,7 +348,7 @@ void UBFPusherInputComponent::OnDriftStarted(const FInputActionValue& Value)
 
 void UBFPusherInputComponent::OnDriftEnded(const FInputActionValue& Value)
 {
-	const ABFPusher* Pusher = GetOwnerPusher();
+	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher || !Pusher->IsDriving()) return;
 
 	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))

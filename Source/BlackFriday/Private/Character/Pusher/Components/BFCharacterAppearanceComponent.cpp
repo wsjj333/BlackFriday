@@ -1,6 +1,6 @@
 #include "Character/Pusher/Components/BFCharacterAppearanceComponent.h"
 
-#include "Character/Common/BFCharacterBase.h"
+#include "Character/Common/BFPawnBase.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Net/UnrealNetwork.h"
 
@@ -14,7 +14,7 @@ void UBFCharacterAppearanceComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	OwnerCharacter = Cast<ABFCharacterBase>(GetOwner());
+	OwnerCharacter = Cast<ABFPawnBase>(GetOwner());
 
 	// 서버가 소스: 서버는 BeginPlay 시점에 즉시 적용(클라는 OnRep로 적용)
 	if (OwnerCharacter && OwnerCharacter->HasAuthority())
@@ -23,7 +23,7 @@ void UBFCharacterAppearanceComponent::BeginPlay()
 	}
 }
 
-ABFCharacterBase* UBFCharacterAppearanceComponent::GetOwnerCharacter() const
+ABFPawnBase* UBFCharacterAppearanceComponent::GetOwnerCharacter() const
 {
 	return OwnerCharacter.Get();
 }
@@ -39,7 +39,7 @@ void UBFCharacterAppearanceComponent::GetLifetimeReplicatedProps(TArray<FLifetim
 
 void UBFCharacterAppearanceComponent::SetCharacterType(EBFCharacterType NewType)
 {
-	ABFCharacterBase* Owner = GetOwnerCharacter();
+	ABFPawnBase* Owner = GetOwnerCharacter();
 	if (!Owner)
 	{
 		return;
@@ -125,7 +125,7 @@ bool UBFCharacterAppearanceComponent::IsValidCharacterType(EBFCharacterType Type
 		return false;
 	}
 
-	// Enum 유효성 체크(네 기존 코드 유지)
+	// Enum 유효성 체크
 	const UEnum* Enum = StaticEnum<EBFCharacterType>();
 	if (!Enum)
 	{
@@ -137,12 +137,11 @@ bool UBFCharacterAppearanceComponent::IsValidCharacterType(EBFCharacterType Type
 
 USkeletalMeshComponent* UBFCharacterAppearanceComponent::ResolveMeshComponent() const
 {
-	const ABFCharacterBase* Owner = GetOwnerCharacter();
+	const ABFPawnBase* Owner = GetOwnerCharacter();
 	if (!Owner)
 	{
 		return nullptr;
 	}
-
-	// ABFCharacterBase가 ACharacter 기반이면 GetMesh() 사용 가능
+	
 	return Owner->GetMesh();
 }

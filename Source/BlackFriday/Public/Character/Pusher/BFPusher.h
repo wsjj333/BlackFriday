@@ -1,29 +1,26 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Character/Common/BFCharacterBase.h"
-#include "Data/Enums/BFCharacterType.h"
+#include "Character/Common/BFPawnBase.h"
 #include "BFPusher.generated.h"
 
-class UBFCharacterAppearanceComponent;
-class UBFPusherDriveComponent;
 class UBFPusherInputComponent;
+class UBFPusherDriveComponent;
+class UBFCharacterAppearanceComponent;
+class UCapsuleComponent;
+class UBFPhysicsMovementComponent;
+class UBFNetworkPhysicsComponent;
 class UBFCartMovementComponent;
 class UBFCharacterAnimInstance;
-class UInputMappingContext;
-class UInputAction;
 class ABFCartPawn;
 
 UCLASS()
-class BLACKFRIDAY_API ABFPusher : public ABFCharacterBase
+class BLACKFRIDAY_API ABFPusher : public ABFPawnBase
 {
 	GENERATED_BODY()
 
 public:
 	ABFPusher();
-
-	UFUNCTION(BlueprintCallable)
-	void ToggleDrivingMode();
 
 	UFUNCTION(BlueprintCallable)
 	bool IsDriving() const;
@@ -33,22 +30,32 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetCart(ABFCartPawn* NewCart) const;
-
+	
 	UFUNCTION(BlueprintCallable)
 	UBFCartMovementComponent* GetCartDrivingComp() const { return CartDrivingComp; }
 	
 	UFUNCTION(BlueprintCallable)
 	UBFPusherInputComponent* GetPusherInputComp() const { return PusherInputComp; }
+	
+	void SetPhysicsEnabled(const bool bEnabled) const;
+	void AdjustActorLocationByCapsuleHalfHeight();
 
 protected:
-	virtual void Tick(float DeltaSeconds) override;
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
-	virtual void PawnClientRestart() override;
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Drive", meta=(AllowPrivateAccess="true"))
+	// ----- Components -----
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Components")
+	TObjectPtr<UBFPhysicsMovementComponent> PhysicsMoveComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Components")
+	TObjectPtr<UBFNetworkPhysicsComponent> NetPhysicsComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Components")
 	TObjectPtr<UBFCartMovementComponent> CartDrivingComp;
-
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Input", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UBFPusherInputComponent> PusherInputComp;
 	
@@ -57,15 +64,9 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Appearance", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UBFCharacterAppearanceComponent> AppearanceComp;
-	
-	// ----- Drive Mode -----
+
 	UPROPERTY(Transient)
 	TObjectPtr<UBFCharacterAnimInstance> CachedAnimInstance;
 
 	void RefreshAnimInstanceCache();
-	
-private:
-	UFUNCTION()
-	void HandleAppearanceApplied(EBFCharacterType AppliedType);
-
 };

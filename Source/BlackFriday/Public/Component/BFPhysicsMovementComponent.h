@@ -28,6 +28,10 @@ public:
 		ELevelTick TickType,
 		FActorComponentTickFunction* ThisTickFunction
 	) override;
+	
+	// CMC의 GetCurrentAcceleration과 동일한 의미
+	UFUNCTION(BlueprintCallable, Category="BF|Move")
+	FVector GetCurrentAcceleration() const { return CurrentAcceleration; }
 
 	/**
 	 * 네트워크/로컬 공통 입력 세팅
@@ -143,6 +147,10 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPhysicalAnimationComponent> PhysicalAnimationComp = nullptr;
+	
+	// 튜닝 값 (CMC의 MaxAcceleration 역할)
+	UPROPERTY(EditAnywhere, Category="BF|Move")
+	float MaxAcceleration = 2048.f;
 
 	// 실제 이동에 사용할 물리 컴포넌트 결정
 	void CachePrimitive();
@@ -158,6 +166,8 @@ private:
 
 	bool bJumpHeld = false;
 	bool bPrevJumpHeld = false;
+	
+	FVector CurrentAcceleration = FVector::ZeroVector;
 
 	// ================= 내부 상태 =================
 	float DebugAcc = 0.f;
