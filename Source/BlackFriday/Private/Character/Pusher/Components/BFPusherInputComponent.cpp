@@ -115,7 +115,11 @@ void UBFPusherInputComponent::BindInput(UInputComponent* PlayerInputComponent)
 	if (MoveAction)
 	{
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this,
-		                          &UBFPusherInputComponent::HandleMoveInput);
+		                          &UBFPusherInputComponent::OnMoveInputTriggered);
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this,
+								  &UBFPusherInputComponent::OnMoveInputEnded);
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Canceled, this,
+								  &UBFPusherInputComponent::OnMoveInputEnded);
 	}
 
 	if (LookAction)
@@ -177,7 +181,7 @@ void UBFPusherInputComponent::SetInputSink(const TScriptInterface<IBFInputSink>&
 
 // -------------------- Bound Functions --------------------
 
-void UBFPusherInputComponent::HandleMoveInput(const FInputActionValue& Value)
+void UBFPusherInputComponent::OnMoveInputTriggered(const FInputActionValue& Value)
 {
 	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher)
@@ -208,6 +212,11 @@ void UBFPusherInputComponent::HandleMoveInput(const FInputActionValue& Value)
 	{
 		InputSink->SetMoveInput(MoveAxis);
 	}
+}
+
+void UBFPusherInputComponent::OnMoveInputEnded()
+{
+	InputSink->SetMoveInput(FVector2D(0.0f, 0.0f));
 }
 
 void UBFPusherInputComponent::HandleLookInput(const FInputActionValue& Value)

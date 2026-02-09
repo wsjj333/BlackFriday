@@ -4,17 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Interfaces/BFInputSink.h"
 #include "BFPusherInputComponent.generated.h"
 
-
-class IBFInputSink;
 class ABFPusher;
 struct FInputActionValue;
 class UInputAction;
 class UInputMappingContext;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class BLACKFRIDAY_API UBFPusherInputComponent final : public UActorComponent
+class BLACKFRIDAY_API UBFPusherInputComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
@@ -67,7 +66,8 @@ private:
 	ABFPusher* GetOwnerPusher();
 	
 	// ----- Bound Functions -----
-	void HandleMoveInput(const FInputActionValue& Value);
+	void OnMoveInputTriggered(const FInputActionValue& Value);
+	void OnMoveInputEnded();
 	void HandleLookInput(const FInputActionValue& Value);
 	void OnJumpPressed(const FInputActionValue& Value);
 	void OnJumpReleased(const FInputActionValue& Value);

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "BFPhysicsNetTypes.h"
+#include "Interfaces/BFInputSink.h"
 #include "BFNetworkPhysicsComponent.generated.h"
 
 class UBFPhysicsMovementComponent;
@@ -18,7 +19,7 @@ class UPrimitiveComponent;
  * - Proxy: 보간(Smoothing)
  */
 UCLASS(ClassGroup=(BF), meta=(BlueprintSpawnableComponent))
-class BLACKFRIDAY_API UBFNetworkPhysicsComponent : public UActorComponent
+class BLACKFRIDAY_API UBFNetworkPhysicsComponent : public UActorComponent, public IBFInputSink
 {
 	GENERATED_BODY()
 
@@ -46,15 +47,15 @@ public:
 
 	/** 이동 입력 (XY 평면) */
 	UFUNCTION(BlueprintCallable, Category="BF|NetInput")
-	void SetMoveInput(FVector2D Move);
+	virtual void SetMoveInput(FVector2D Move) override;
 
 	/** 컨트롤 기준 Yaw */
 	UFUNCTION(BlueprintCallable, Category="BF|NetInput")
-	void SetControlYawDegrees(float YawDegrees);
+	virtual void SetControlYawDegrees(float YawDegrees) override;
 
 	/** 점프 버튼 홀드 여부 */
 	UFUNCTION(BlueprintCallable, Category="BF|NetInput")
-	void SetJumpHeld(bool bHeld);
+	virtual void SetJumpHeld(bool bHeld) override;
 
 	/** 로컬 클라이언트 예측 사용 여부 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BF|Net|Mode")
@@ -69,11 +70,16 @@ public:
 	 * - Unreliable: 매 프레임 보내므로 신뢰성 불필요
 	 */
 	UFUNCTION(Server, Unreliable, WithValidation)
-	void ServerReceiveInput(FBFMoveInputNet Input);
+	virtual void ServerReceiveInput(FBFMoveInputNet Input) override;
 
 	// =====================
 	// 상태 조회
 	// =====================
+	
+	// CMC와 동일한 의미의 "월드 기준 이동 입력 벡터"
+	// - 길이: 0~1
+	// - 방향: 이동 의도
+	FVector GetMoveInputWorldSpace() const;
 
 	/** 마지막 서버 상태 (C++용) */
 	FBFPhysicsState GetLastServerState() const { return RepState; }

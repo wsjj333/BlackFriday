@@ -10,7 +10,7 @@ UBFPhysicsMovementComponent::UBFPhysicsMovementComponent()
 	// PrePhysics에서 Tick → 물리 힘 적용 타이밍 보장
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
-	
+
 	// 기본 튜닝값
 	MoveForce = 180000.f;
 	BrakingLinearDamping = 10.0f;
@@ -73,7 +73,7 @@ void UBFPhysicsMovementComponent::ApplyInputImmediately(const FBFMoveInputNet& I
 {
 	// 물리 시뮬레이션 중이 아닐 경우 무시
 	if (!Prim || !Prim->IsSimulatingPhysics()) return;
-	
+
 	const bool bJump = (Input.Buttons & 0x01) != 0;
 
 	// 즉시 점프 (서버/로컬 공통)
@@ -86,7 +86,7 @@ void UBFPhysicsMovementComponent::ApplyInputImmediately(const FBFMoveInputNet& I
 
 		Prim->SetLinearDamping(0.1f);
 		Prim->AddImpulse(FVector(0.f, 0.f, JumpImpulse), NAME_None, true);
-		
+
 		bGrounded = false;
 		JumpCooldownTime = 0.3f;
 
@@ -150,7 +150,7 @@ void UBFPhysicsMovementComponent::TickComponent(
 	if (JumpBufferTime > 0.f) JumpBufferTime -= DeltaTime;
 	if (JumpCooldownTime > 0.f) JumpCooldownTime -= DeltaTime;
 	
-	const bool bHasInput = (MoveX != 0.f || MoveY != 0.f);
+	const bool bHasInput = !FMath::IsNearlyZero(MoveX) || !FMath::IsNearlyZero(MoveY); 
 
 	// 지면/공중에 따른 감쇠 조절
 	if (bGrounded)
@@ -195,14 +195,25 @@ void UBFPhysicsMovementComponent::TickComponent(
 	}
 
 	// ================= 이동 힘 적용 =================
+	const FVector Velo = Prim->GetPhysicsLinearVelocity();
+	// UE_LOG(LogTemp, Warning,
+	// 	TEXT("Input=%s Move=(%.2f, %.2f) | Grounded=%d | Simulating=%d | Speed2D=%.2f"),
+	// 	bHasInput ? TEXT("true") : TEXT("false"),
+	// 	MoveX, MoveY,
+	// 	bGrounded,
+	// 	bSimulating,
+	// 	Velo.Size2D()
+	// );
+	
 	if (bHasInput && bSimulating)
 	{
-		// 로컬 입력 방향
+		// 로컬 공간(컨트롤 기준)의 입력 벡터를 만든다(Z는 이동 입력에선 안 쓰니 0)
 		FVector LocalDir(MoveX, MoveY, 0.f);
+		// 대각 입력 시 속도가 증가할 수 있으므로 정규화
 		if (LocalDir.SizeSquared() > 1.f)
 			LocalDir.Normalize();
 
-		// 컨트롤 Yaw 기준 월드 방향
+		// 컨트롤 Yaw(시야 방향)를 기준으로 월드 이동 방향 계산
 		const FRotator YawRot(0.f, InputYawDeg, 0.f);
 		FVector WorldDir = YawRot.RotateVector(LocalDir);
 
@@ -211,7 +222,7 @@ void UBFPhysicsMovementComponent::TickComponent(
 			// 경사면 투영
 			WorldDir =
 				FVector::VectorPlaneProject(WorldDir, GroundNormal)
-					.GetSafeNormal();
+				.GetSafeNormal();
 		}
 		else
 		{
@@ -249,6 +260,7 @@ void UBFPhysicsMovementComponent::TickComponent(
 		Prim->SetLinearDamping(BrakingLinearDamping);
 
 		FVector Vel = Prim->GetPhysicsLinearVelocity();
+		Vel = Prim->GetPhysicsLinearVelocity();
 		if (Vel.SizeSquared2D() < 100.f)
 		{
 			Vel.X = 0.f;
@@ -315,6 +327,56 @@ void UBFPhysicsMovementComponent::TickComponent(
 			);
 		}
 	}
+
+	// ================= 가속도 =================
+	APawn* Pawn = GetPawnOwner();
+	if (!Pawn)
+	{
+		CurrentAcceleration = FVector::ZeroVector;
+		return;
+	}
+
+	UBFNetworkPhysicsComponent* NetComp =
+		Pawn->FindComponentByClass<UBFNetworkPhysicsComponent>();
+
+	if (!NetComp)
+	{
+		CurrentAcceleration = FVector::ZeroVector;
+		return;
+	}
+
+	/*
+	 * === Owner (AutonomousProxy) ===
+	 * CMC와 동일:
+	 * 입력 벡터 → 정규화 → MaxAcceleration
+	 */
+	if (Pawn->IsLocallyControlled())
+	{
+		// NetComp가 제공하는 월드 이동 입력
+		const FVector InputWS = NetComp->GetMoveInputWorldSpace();
+
+		FVector AccelDir = InputWS.GetClampedToMaxSize(1.f);
+		CurrentAcceleration = AccelDir * MaxAcceleration;
+		return;
+	}
+
+	/*
+	 * === SimulatedProxy ===
+	 * CMC의 UpdateProxyAcceleration과 동일한 개념
+	 * (애니메이션 힌트용)
+	 */
+	const FVector Vel = UpdatedComponent
+		                    ? UpdatedComponent->GetComponentVelocity()
+		                    : FVector::ZeroVector;
+
+	if (Vel.SizeSquared() > SMALL_NUMBER)
+	{
+		CurrentAcceleration = Vel.GetSafeNormal() * MaxAcceleration;
+	}
+	else
+	{
+		CurrentAcceleration = FVector::ZeroVector;
+	}
 }
 
 void UBFPhysicsMovementComponent::SetCurrentInput(
@@ -322,8 +384,10 @@ void UBFPhysicsMovementComponent::SetCurrentInput(
 )
 {
 	// 정규화된 입력값 복원
-	MoveX = InInput.MoveX / 32767.f;
-	MoveY = InInput.MoveY / 32767.f;
+	// TODO: InInput의 MoveY와 MoveX 값이 뒤바뀌어서 들어오는데 원인 파악 중이라 임시로 두 값을 바꿔서 복원함 
+	MoveX = InInput.MoveY / 32767.f;
+	MoveY = InInput.MoveX / 32767.f;
+	
 	InputYawDeg = InInput.ControlYaw100 / 100.f;
 
 	// 점프 입력 에지 감지

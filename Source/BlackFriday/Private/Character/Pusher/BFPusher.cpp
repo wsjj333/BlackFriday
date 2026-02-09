@@ -49,8 +49,10 @@ void ABFPusher::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	PusherInputComp->SetInputSink(MovementComp);
-	NetPhysicsComp->SetStateApplier(MovementComp);
+	if (PusherInputComp && NetPhysicsComp)
+	{
+		PusherInputComp->SetInputSink(TScriptInterface<IBFInputSink>(NetPhysicsComp));
+	}
 
 	RefreshAnimInstanceCache();
 }

@@ -125,7 +125,7 @@ protected:
 	TObjectPtr<UBFCharacterAnimInstance> CachedAnimInstance;
 
 	// ----- Bound Functions -----
-	void HandleMoveInput(const FInputActionValue& Value);
+	void OnMoveInputTriggered(const FInputActionValue& Value);
 	void HandleLookInput(const FInputActionValue& Value);
 	void OnJumpPressed(const FInputActionValue& Value);
 	void OnJumpReleased(const FInputActionValue& Value);

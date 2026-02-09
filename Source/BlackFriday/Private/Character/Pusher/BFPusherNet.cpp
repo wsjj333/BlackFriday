@@ -107,7 +107,7 @@ void ABFPusherNet::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& O
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 }
 
-void ABFPusherNet::HandleMoveInput(const FInputActionValue& Value)
+void ABFPusherNet::OnMoveInputTriggered(const FInputActionValue& Value)
 {
 	if (bIsDriving)
 	{
@@ -120,7 +120,7 @@ void ABFPusherNet::HandleMoveInput(const FInputActionValue& Value)
 	{
 		// Enhanced Input: X=좌우(A/D), Y=앞뒤(W/S)
 		// BFPhysicsMovementComponent: X=앞뒤(Forward), Y=좌우(Right)
-		NetPhysicsComp->SetMoveInput(FVector2D(MoveAxis.Y, MoveAxis.X));
+		NetPhysicsComp->SetMoveInput(FVector2D(MoveAxis.X, MoveAxis.Y));
 	}
 }
 
@@ -228,11 +228,11 @@ void ABFPusherNet::ApplyDrivingAttachment_Server(bool bAttach)
 		AttachToComponent(StandAnker, Rules);
 
 		// 캡슐 중심 기준이므로 HalfHeight만큼 위로 오프셋
-		if (CapsuleComp)
-		{
-			const float HalfHeight = CapsuleComp->GetScaledCapsuleHalfHeight();
-			SetActorRelativeLocation(FVector(0.f, 0.f, HalfHeight));
-		}
+		// if (CapsuleComp)
+		// {
+		// 	const float HalfHeight = CapsuleComp->GetScaledCapsuleHalfHeight();
+		// 	SetActorRelativeLocation(FVector(0.f, 0.f, HalfHeight));
+		// }
 	}
 	else
 	{

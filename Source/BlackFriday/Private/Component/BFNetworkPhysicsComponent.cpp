@@ -268,6 +268,39 @@ FBFPhysicsState UBFNetworkPhysicsComponent::BuildState() const
 	return S;
 }
 
+FVector UBFNetworkPhysicsComponent::GetMoveInputWorldSpace() const
+{
+	// 입력이 없으면 바로 0
+	if (LocalMove.IsNearlyZero())
+	{
+		return FVector::ZeroVector;
+	}
+
+	/*
+	 * ControlYaw 기준으로 월드 방향 생성
+	 * (CMC의 GetControlRotation().Yaw 와 동일 개념)
+	 */
+	const FRotator ControlRot(0.f, LocalYaw, 0.f);
+
+	const FVector Forward =
+		FRotationMatrix(ControlRot).GetUnitAxis(EAxis::X);
+
+	const FVector Right =
+		FRotationMatrix(ControlRot).GetUnitAxis(EAxis::Y);
+
+	/*
+	 * 입력 해석:
+	 * X = Forward
+	 * Y = Right
+	 */
+	FVector MoveWS =
+		Forward * LocalMove.X +
+		Right   * LocalMove.Y;
+
+	// 대각선 입력 보정 (길이 1 초과 방지)
+	return MoveWS.GetClampedToMaxSize(1.f);
+}
+
 void UBFNetworkPhysicsComponent::GetLastServerStateBP(
 	FVector& OutPos,
 	FRotator& OutRot,
