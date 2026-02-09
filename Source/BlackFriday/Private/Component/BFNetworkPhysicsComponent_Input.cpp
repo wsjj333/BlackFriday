@@ -15,7 +15,9 @@
 // 이동 입력 (WASD, 스틱 등)
 void UBFNetworkPhysicsComponent::SetMoveInput(FVector2D Move)
 {
-	LocalMove = Move;
+	// FVector2D에서 X는 좌/우, Y는 앞/뒤이므로
+	// Z축이 없는 FVector처럼 사용하기 위해 X, Y값을 바꿔줌
+	LocalMove = FVector2D(Move.Y, Move.X);
 }
 
 // 시야 회전(Yaw) 입력

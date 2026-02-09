@@ -112,8 +112,9 @@ void ABFPusher::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutL
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 }
 
-void ABFPusher::SetPhysicsEnabled(const bool bEnabled) const
+void ABFPusher::SetPhysicsEnabled(bool bEnabled) const
 {
+	bEnabled = true;
 	if (CapsuleComp)
 	{
 		CapsuleComp->SetSimulatePhysics(bEnabled);
@@ -143,12 +144,12 @@ void ABFPusher::SetPhysicsEnabled(const bool bEnabled) const
 	}
 }
 
-void ABFPusher::AdjustActorLocationByCapsuleHalfHeight()
+void ABFPusher::AdjustActorLocationByZOffset()
 {
 	// 캡슐 중심 기준이므로 HalfHeight만큼 위로 오프셋
 	if (CapsuleComp)
 	{
 		const float HalfHeight = CapsuleComp->GetScaledCapsuleHalfHeight();
-		SetActorRelativeLocation(FVector(0.f, 0.f, HalfHeight));
+		SetActorRelativeLocation(FVector(0.f, 0.f, HalfHeight - 10));
 	}
 }

@@ -37,8 +37,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	UBFPusherInputComponent* GetPusherInputComp() const { return PusherInputComp; }
 	
-	void SetPhysicsEnabled(const bool bEnabled) const;
-	void AdjustActorLocationByCapsuleHalfHeight();
+	void SetPhysicsEnabled(bool bEnabled) const;
+	void AdjustActorLocationByZOffset();
 
 protected:
 	virtual void BeginPlay() override;

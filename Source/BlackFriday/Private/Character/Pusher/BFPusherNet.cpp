@@ -205,7 +205,7 @@ void ABFPusherNet::ServerToggleDrivingMode_Implementation()
 void ABFPusherNet::ApplyDrivingAttachment_Server(bool bAttach)
 {
 	if (!HasAuthority())
-	{
+	{	
 		return;
 	}
 
@@ -245,6 +245,7 @@ void ABFPusherNet::ApplyDrivingAttachment_Server(bool bAttach)
 
 void ABFPusherNet::SetPhysicsEnabled(bool bEnabled)
 {
+	// bEnabled = true;
 	if (CapsuleComp)
 	{
 		CapsuleComp->SetSimulatePhysics(bEnabled);

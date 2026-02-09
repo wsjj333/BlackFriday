@@ -195,7 +195,7 @@ void UBFPhysicsMovementComponent::TickComponent(
 	}
 
 	// ================= 이동 힘 적용 =================
-	const FVector Velo = Prim->GetPhysicsLinearVelocity();
+	// const FVector Velo = Prim->GetPhysicsLinearVelocity();
 	// UE_LOG(LogTemp, Warning,
 	// 	TEXT("Input=%s Move=(%.2f, %.2f) | Grounded=%d | Simulating=%d | Speed2D=%.2f"),
 	// 	bHasInput ? TEXT("true") : TEXT("false"),
@@ -384,9 +384,8 @@ void UBFPhysicsMovementComponent::SetCurrentInput(
 )
 {
 	// 정규화된 입력값 복원
-	// TODO: InInput의 MoveY와 MoveX 값이 뒤바뀌어서 들어오는데 원인 파악 중이라 임시로 두 값을 바꿔서 복원함 
-	MoveX = InInput.MoveY / 32767.f;
-	MoveY = InInput.MoveX / 32767.f;
+	MoveX = InInput.MoveX / 32767.f;
+	MoveY = InInput.MoveY / 32767.f;
 	
 	InputYawDeg = InInput.ControlYaw100 / 100.f;
 

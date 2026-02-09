@@ -250,7 +250,7 @@ void UBFPusherDriveComponent::ApplyDrivingAttachment_Server(const bool bAttach)
 
 		Pusher->AttachToComponent(StandAnker, Rules);
 		
-		Pusher->AdjustActorLocationByCapsuleHalfHeight();
+		// Pusher->AdjustActorLocationByZOffset();
 	}
 	else
 	{
