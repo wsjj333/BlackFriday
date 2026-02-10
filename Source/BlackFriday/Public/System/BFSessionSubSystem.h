@@ -112,10 +112,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "BF|Session")
     void JoinSession(int32 InIndex);
 
-    // 서버 맵 이동 (서버에서만 호출 가능)
-    UFUNCTION(BlueprintCallable, Category = "BF|Session")
-    void TravelToMap(const FString& MapPath);
-
     // ===== 세션 리스트 조회 =====
 
     // 검색된 세션 리스트 가져오기 (FindSessions 완료 후 호출)

@@ -59,7 +59,7 @@ void ABFGameMode::InitGameState()
 	Super::InitGameState();
 
 	BFGameState = GetGameState<ABFGameState>();
-
+	
 	if (BFGameState)
 	{
 		// 카운트다운 완료 델리게이트 바인딩
@@ -73,7 +73,7 @@ void ABFGameMode::InitGameState()
 			UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Team count set to %d from GameInstance"), PendingTeamCount);
 		}
 	}
-}
+}	
 
 void ABFGameMode::PostLogin(APlayerController* NewPlayer)
 {
@@ -92,8 +92,6 @@ void ABFGameMode::PostLogin(APlayerController* NewPlayer)
 			// 여기서는 일단 PlayerState 정보 등록만 해두고, 이름은 클라이언트가 RPC로 전달
 			if (BFGameState)
 			{
-				BFGameState->SetPlayerTeam(PlayerId, 255); // 미선택 상태로 등록
-
 				// UniqueNetId 저장 (레벨 이동 후에도 플레이어 식별 가능)
 				FString UniqueNetId = NewPlayer->PlayerState->GetUniqueId().ToString();
 				BFGameState->SetPlayerUniqueNetId(PlayerId, UniqueNetId);
@@ -123,13 +121,6 @@ void ABFGameMode::Logout(AController* Exiting)
 
 		UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Player logged out. Remaining: %d"), ConnectedPlayers.Num());
 	}
-}
-
-void ABFGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
-{
-	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
-
-	// 여기서 Pawn 스폰 등 추가 처리 가능
 }
 
 void ABFGameMode::NotifyPlayerReady(APlayerController* Player)
@@ -543,3 +534,6 @@ TArray<APlayerController*> ABFGameMode::GetAllConnectedPlayerControllers() const
 	}
 	return Result;
 }
+
+
+//TODO : 500 줄 넘는거 기능별로 나눠서 정리 ㄱㄱ

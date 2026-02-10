@@ -111,6 +111,11 @@ void ABFGameState::SetCurrentRound(int32 NewRound)
 void ABFGameState::OnRep_CountdownTime()
 {
 	OnCountdownChanged.Broadcast(CountdownTime);
+
+	if (CountdownTime <= 0)
+	{
+		OnCountdownFinished.Broadcast();
+	}
 }
 
 void ABFGameState::OnRep_GamePhase()
@@ -471,3 +476,5 @@ bool ABFGameState::HasPlayerInfo(int32 PlayerId) const
 	}
 	return false;
 }
+
+//TODO : 500 줄 넘는거 기능별로 나눠서 정리 ㄱㄱ

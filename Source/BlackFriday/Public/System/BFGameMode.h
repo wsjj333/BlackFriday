@@ -28,7 +28,6 @@ public:
 	virtual void InitGameState() override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
-	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 
 	// ===== 게임 흐름 제어 (서버에서만 호출) =====
 

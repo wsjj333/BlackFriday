@@ -274,15 +274,6 @@ void UBFSessionSubsystem::JoinSession(int32 InIndex)
     }
 }
 
-void UBFSessionSubsystem::TravelToMap(const FString& MapPath)
-{
-    UWorld* World = GetWorld();
-    if (World && World->GetNetMode() != NM_Client)
-    {
-        World->ServerTravel(MapPath + TEXT("?listen"));
-    }
-}
-
 void UBFSessionSubsystem::OnJoinSessionCompleteInternal(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 {
     UE_LOG(LogTemp, Warning, TEXT("접속 시도 결과: %s"), 
