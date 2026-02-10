@@ -14,6 +14,7 @@
 #include "Character/Pusher/Components/BFPusherDriveComponent.h"
 #include "Interfaces/BFInputSink.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
+#include "Vehicle/Cart/BFCartPawn.h"
 
 
 UBFPusherInputComponent::UBFPusherInputComponent()
@@ -166,6 +167,11 @@ void UBFPusherInputComponent::BindInput(UInputComponent* PlayerInputComponent)
 		EnhancedInput->BindAction(DriftAction, ETriggerEvent::Started, this, &UBFPusherInputComponent::OnDriftStarted);
 		EnhancedInput->BindAction(DriftAction, ETriggerEvent::Canceled, this, &UBFPusherInputComponent::OnDriftEnded);
 		EnhancedInput->BindAction(DriftAction, ETriggerEvent::Completed, this, &UBFPusherInputComponent::OnDriftEnded);
+	}
+	
+	if (CartRecoverAction)
+	{
+		EnhancedInput->BindAction(CartRecoverAction, ETriggerEvent::Started, this, &UBFPusherInputComponent::OnRecoverCart);
 	}
 }
 
@@ -364,4 +370,26 @@ void UBFPusherInputComponent::OnDriftEnded(const FInputActionValue& Value)
 	{
 		CartMovementComp->Input_DriftEnded(Value);
 	}
+}
+
+void UBFPusherInputComponent::OnRecoverCart()
+{
+	if (!OwnerPusher)
+	{
+		return;
+	}
+	
+	ABFCartPawn* Cart = OwnerPusher->GetCart();
+	
+	if (!Cart)
+	{
+		return;
+	}
+	
+	if (OwnerPusher->IsDriving())
+	{
+		return;
+	}
+	
+	Cart->RequestUpright();
 }

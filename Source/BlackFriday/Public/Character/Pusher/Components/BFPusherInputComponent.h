@@ -58,6 +58,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="BF|Control")
 	TObjectPtr<UInputAction> DriftAction;
 	
+	UPROPERTY(EditDefaultsOnly, Category="BF|Control")
+	TObjectPtr<UInputAction> CartRecoverAction;
+	
 private:
 	// ----- Owner 캐시 -----
 	UPROPERTY(Transient)
@@ -80,6 +83,8 @@ private:
 	void OnSteerEnded(const FInputActionValue& Value);
 	void OnDriftStarted(const FInputActionValue& Value);
 	void OnDriftEnded(const FInputActionValue& Value);
+	
+	void OnRecoverCart();
 
 	// 로컬만 MappingContext 추가(기존 BeginPlay 로직을 InputComp로 이동)
 	void AddMappingContextIfLocal();
