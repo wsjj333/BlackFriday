@@ -107,7 +107,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BF|GameMode")
 	int32 StartCountdownSeconds = 5;
 
-	// 라운드 시작 카운트다운 시간 (초)
+	// 라운드 플레이 시간 (초) - 기본 10분 (600초)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BF|GameMode")
+	int32 RoundPlayTimeSeconds = 600;
+
+	// 라운드 간 전환 카운트다운 시간 (초)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BF|GameMode")
 	int32 RoundCountdownSeconds = 3;
 
@@ -115,6 +119,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BF|GameMode")
 	bool bAutoStartWhenReady = false;
 
+	// 로비 레벨 여부 (false = 마트/인게임 레벨)
+	// BP_Title: true, BP_MarketGM: false
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BF|GameMode")
+	bool bIsLobby = true;
+	
+	UPROPERTY()
+	FTimerHandle RoundTransitionTimerHandle;
+	
 	// ===== 델리게이트 =====
 
 	UPROPERTY(BlueprintAssignable, Category = "BF|GameMode")

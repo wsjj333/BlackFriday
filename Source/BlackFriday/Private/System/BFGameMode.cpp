@@ -24,10 +24,11 @@ void ABFGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] ========== BeginPlay =========="));
+	UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] ========== BeginPlay (bIsLobby=%s) =========="),
+		bIsLobby ? TEXT("true") : TEXT("false"));
 
 	// ServerTravel 후 서버 플레이어(호스트)는 PostLogin이 호출되지 않음
-	// 이미 존재하는 플레이어를 ConnectedPlayers와 GameState에 등록
+	// 이미 존재하는 플레이어를 ConnectedPlayers에 등록
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
 		APlayerController* PC = It->Get();
@@ -39,13 +40,39 @@ void ABFGameMode::BeginPlay()
 			{
 				int32 PlayerId = PC->PlayerState->GetPlayerId();
 
-				// 이미 등록된 플레이어인지 확인 (GameInstance에서 로비 데이터 복원)
-				if (!BFGameState->HasPlayerInfo(PlayerId))
+				if (bIsLobby)
 				{
-					BFGameState->SetPlayerTeam(PlayerId, 255);
+					// 로비: 팀 미선택 상태로 초기 등록
+					if (!BFGameState->HasPlayerInfo(PlayerId))
+					{
+						BFGameState->SetPlayerTeam(PlayerId, 255);
 
-					FString UniqueNetId = PC->PlayerState->GetUniqueId().ToString();
-					BFGameState->SetPlayerUniqueNetId(PlayerId, UniqueNetId);
+						FString UniqueNetId = PC->PlayerState->GetUniqueId().ToString();
+						BFGameState->SetPlayerUniqueNetId(PlayerId, UniqueNetId);
+					}
+				}
+				else
+				{
+					// 마트(인게임): GameInstance에서 로비 데이터 복구
+					if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
+					{
+						FString CurrentUniqueNetId = PC->PlayerState->GetUniqueId().ToString();
+
+						for (const FBFPlayerTeamInfo& Info : GI->GetSavedPlayerInfos())
+						{
+							if (Info.UniqueNetId == CurrentUniqueNetId)
+							{
+								BFGameState->SetPlayerTeam(PlayerId, Info.TeamId);
+								BFGameState->SetPlayerRole(PlayerId, Info.Role);
+								BFGameState->SetPlayerName(PlayerId, Info.PlayerName);
+								BFGameState->SetPlayerUniqueNetId(PlayerId, CurrentUniqueNetId);
+
+								UE_LOG(LogTemp, Log, TEXT("[BFGameMode] BeginPlay(Mart) - Restored host player %d: Team=%d, Role=%d"),
+									PlayerId, Info.TeamId, (uint8)Info.Role);
+								break;
+							}
+						}
+					}
 				}
 			}
 
@@ -83,24 +110,73 @@ void ABFGameMode::PostLogin(APlayerController* NewPlayer)
 	{
 		ConnectedPlayers.AddUnique(NewPlayer);
 
-		// GameInstance에서 로컬 플레이어 이름 가져와서 등록
 		if (NewPlayer->PlayerState)
 		{
 			int32 PlayerId = NewPlayer->PlayerState->GetPlayerId();
 
-			// 클라이언트의 GameInstance에서 이름을 가져오려면 RPC가 필요
-			// 여기서는 일단 PlayerState 정보 등록만 해두고, 이름은 클라이언트가 RPC로 전달
-			if (BFGameState)
+			if (bIsLobby)
 			{
-				// UniqueNetId 저장 (레벨 이동 후에도 플레이어 식별 가능)
-				FString UniqueNetId = NewPlayer->PlayerState->GetUniqueId().ToString();
-				BFGameState->SetPlayerUniqueNetId(PlayerId, UniqueNetId);
+				// 로비: Ready 등록 + UniqueNetId 저장
+				ReadyPlayers.Add(NewPlayer);
+
+				if (BFGameState)
+				{
+					FString UniqueNetId = NewPlayer->PlayerState->GetUniqueId().ToString();
+					BFGameState->SetPlayerUniqueNetId(PlayerId, UniqueNetId);
+				}
+			}
+			else
+			{
+				// 마트(인게임): GameInstance에서 로비 데이터 복구
+				if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
+				{
+					FString CurrentUniqueNetId = NewPlayer->PlayerState->GetUniqueId().ToString();
+
+					for (const FBFPlayerTeamInfo& Info : GI->GetSavedPlayerInfos())
+					{
+						if (Info.UniqueNetId == CurrentUniqueNetId)
+						{
+							if (BFGameState)
+							{
+								BFGameState->SetPlayerTeam(PlayerId, Info.TeamId);
+								BFGameState->SetPlayerRole(PlayerId, Info.Role);
+								BFGameState->SetPlayerName(PlayerId, Info.PlayerName);
+								BFGameState->SetPlayerUniqueNetId(PlayerId, CurrentUniqueNetId);
+							}
+
+							UE_LOG(LogTemp, Log, TEXT("[BFGameMode] PostLogin(Mart) - Restored player %d: Team=%d, Role=%d, Name=%s"),
+								PlayerId, Info.TeamId, (uint8)Info.Role, *Info.PlayerName);
+							break;
+						}
+					}
+				}
 			}
 		}
 
-		UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Player logged in. Total: %d"), ConnectedPlayers.Num());
+		UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Player logged in. Total: %d (bIsLobby=%s)"),
+			ConnectedPlayers.Num(), bIsLobby ? TEXT("true") : TEXT("false"));
 
-		// 자동 시작 체크는 NotifyPlayerReady에서 수행
+		if (bIsLobby)
+		{
+			// 로비: 자동 시작 체크
+			CheckAndStartGame();
+		}
+		else
+		{
+			// 마트: 로비에서 접속했던 인원이 모두 들어오면 카운트다운 시작
+			if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
+			{
+				int32 ExpectedPlayers = GI->GetSavedPlayerInfos().Num();
+				UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Mart - Connected: %d / Expected: %d"),
+					ConnectedPlayers.Num(), ExpectedPlayers);
+
+				if (ConnectedPlayers.Num() >= ExpectedPlayers && ExpectedPlayers > 0)
+				{
+					UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Mart - All players connected! Starting countdown."));
+					StartGameCountdown();
+				}
+			}
+		}
 	}
 }
 
@@ -166,38 +242,84 @@ bool ABFGameMode::IsPlayerReady(APlayerController* Player) const
 
 bool ABFGameMode::AreAllPlayersReady() const
 {
-	// 최소 인원 체크
-	if (ConnectedPlayers.Num() < MinPlayersToStart)
-	{
-		return false;
-	}
+    // 1. 인원수 체크
+    if (ConnectedPlayers.Num() < MinPlayersToStart)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] 시작 불가: 인원 부족. 현재: %d / 최소: %d"), 
+            ConnectedPlayers.Num(), MinPlayersToStart);
+        return false;
+    }
 
-	// 모든 접속자가 Ready 상태인지 체크
-	for (const TObjectPtr<APlayerController>& PC : ConnectedPlayers)
-	{
-		if (!ReadyPlayers.Contains(PC))
-		{
-			return false;
-		}
-	}
+    // 2. Ready 체크
+    for (const TObjectPtr<APlayerController>& PC : ConnectedPlayers)
+    {
+        if (!ReadyPlayers.Contains(PC))
+        {
+            FString PCName = PC ? PC->GetName() : TEXT("Unknown");
+            UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] 시작 불가: 플레이어(%s)가 준비(Ready) 상태가 아님."), *PCName);
+            return false;
+        }
+    }
 
-	// 모든 플레이어가 팀 선택했는지 체크
-	if (!HaveAllPlayersSelectedTeam())
-	{
-		return false;
-	}
+    // 3. 팀 선택 체크 (★ 여기서 막힐 확률 99%)
+    if (!HaveAllPlayersSelectedTeam())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] 시작 불가: 팀을 선택하지 않은 플레이어가 있음!"));
+        
+        // 범인 찾기
+        if (BFGameState)
+        {
+            for (const auto& PC : ConnectedPlayers)
+            {
+                if (PC && PC->PlayerState)
+                {
+                    int32 PID = PC->PlayerState->GetPlayerId();
+                    // 255 = 팀 미선택
+                    if (BFGameState->GetPlayerTeam(PID) == 255) 
+                    {
+                        UE_LOG(LogTemp, Warning, TEXT(" -> [범인] Player %d (%s) : 팀 없음 (255)"), PID, *PC->GetName());
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
-	// 모든 플레이어가 역할 선택했는지 체크
-	if (!HaveAllPlayersSelectedRole())
-	{
-		return false;
-	}
+    // 4. 역할 선택 체크
+    if (!HaveAllPlayersSelectedRole())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] 시작 불가: 직업(Role)을 선택하지 않은 플레이어가 있음!"));
+        
+        // 범인 찾기
+        if (BFGameState)
+        {
+            for (const auto& PC : ConnectedPlayers)
+            {
+                if (PC && PC->PlayerState)
+                {
+                    int32 PID = PC->PlayerState->GetPlayerId();
+                    if (BFGameState->GetPlayerRole(PID) == EBFPlayerRole::None)
+                    {
+                         UE_LOG(LogTemp, Warning, TEXT(" -> [범인] Player %d (%s) : 직업 없음 (None)"), PID, *PC->GetName());
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
-	return true;
+    // 통과!
+    UE_LOG(LogTemp, Log, TEXT("[BFGameMode] 모든 조건 만족! 게임 카운트다운 진입 가능."));
+    return true;
 }
 
 void ABFGameMode::CheckAndStartGame()
 {
+	if (!bIsLobby)
+	{
+		return;
+	}
+
 	if (AreAllPlayersReady())
 	{
 		StartGameCountdown();
@@ -238,6 +360,7 @@ void ABFGameMode::StartGameCountdown()
 	}
 
 	bWaitingForPlayers = false;
+	BFGameState->SetGamePhase(EBFGamePhase::Countdown);
 	BFGameState->StartCountdown(StartCountdownSeconds);
 
 	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Game countdown started: %d seconds"), StartCountdownSeconds);
@@ -245,13 +368,26 @@ void ABFGameMode::StartGameCountdown()
 
 void ABFGameMode::HandleCountdownFinished()
 {
-	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Countdown finished!"));
+	if (!BFGameState)
+	{
+		return;
+	}
 
-	// 게임 시작 이벤트 발동 (문 열림 등)
-	OnGameStarted.Broadcast();
+	EBFGamePhase CurrentPhase = BFGameState->GetGamePhase();
 
-	// 라운드 시작
-	StartRound();
+	if (CurrentPhase == EBFGamePhase::Countdown)
+	{
+		// 게임 시작 카운트다운(20초) 완료 → 라운드 시작
+		UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Start countdown finished! Starting round."));
+		OnGameStarted.Broadcast();
+		StartRound();
+	}
+	else if (CurrentPhase == EBFGamePhase::Playing)
+	{
+		// 라운드 플레이 타임(30초/10분) 완료 → 라운드 종료
+		UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Round time over!"));
+		EndRound(-1); // -1 = 타임오버 (승자 없음)
+	}
 }
 
 void ABFGameMode::StartRound()
@@ -261,50 +397,58 @@ void ABFGameMode::StartRound()
 		return;
 	}
 
+	// 라운드 플레이 타이머 시작
+	BFGameState->SetGamePhase(EBFGamePhase::Playing);
+	BFGameState->StartCountdown(RoundPlayTimeSeconds);
+
 	OnRoundStarted.Broadcast();
 
-	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Round %d started!"), BFGameState->GetCurrentRound());
+	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Round %d started! Play time: %d seconds"),
+		BFGameState->GetCurrentRound(), RoundPlayTimeSeconds);
 }
 
 void ABFGameMode::EndRound(int32 WinningTeam)
 {
-	if (!BFGameState)
-	{
-		return;
-	}
+	if (!BFGameState) return;
 
+	// 1. 페이즈 변경 및 결과 기록
 	BFGameState->SetGamePhase(EBFGamePhase::RoundEnd);
-	OnRoundEnded.Broadcast(WinningTeam);
-
-	// GameInstance에 결과 저장
 	if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
 	{
 		GI->RecordRoundResult(BFGameState->GetCurrentRound(), WinningTeam);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Round %d ended. Winner: Team %d"),
-		BFGameState->GetCurrentRound(), WinningTeam);
+	// 2. 기존 타이머가 있다면 초기화 후 5초 뒤 다음 라운드 진행
+	GetWorld()->GetTimerManager().SetTimer(
+		RoundTransitionTimerHandle, 
+		this, 
+		&ABFGameMode::AdvanceToNextRound, 
+		5.0f, 
+		false
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Round %d 끝! 5초 뒤 다음 단계 진행..."), BFGameState->GetCurrentRound());
 }
 
 void ABFGameMode::AdvanceToNextRound()
 {
-	if (!BFGameState)
-	{
-		return;
-	}
+	if (!BFGameState) return;
 
 	int32 NextRound = BFGameState->GetCurrentRound() + 1;
 
+	// 마지막 라운드 체크
 	if (NextRound > BFGameState->GetMaxRounds())
 	{
-		// 모든 라운드 완료 - 게임 종료
 		BFGameState->SetGamePhase(EBFGamePhase::GameEnd);
-		UE_LOG(LogTemp, Log, TEXT("[BFGameMode] All rounds complete. Game ended."));
 	}
 	else
 	{
-		// 다음 라운드
+		// 중요: 다음 라운드 카운트다운 시작 전 시간을 먼저 세팅해서 0초 노출 방지
+		BFGameState->StopCountdown(); // 기존 타이머 중지
 		BFGameState->SetCurrentRound(NextRound);
+        
+		// 페이즈 변경 및 카운트다운 시작
+		BFGameState->SetGamePhase(EBFGamePhase::Countdown);
 		BFGameState->StartCountdown(RoundCountdownSeconds);
 	}
 }

@@ -32,9 +32,8 @@ void ABFGameState::StartCountdown(int32 Seconds)
 	{
 		return;
 	}
-
 	CountdownTime = Seconds;
-	SetGamePhase(EBFGamePhase::Countdown);
+	// Phase는 호출하는 쪽(GameMode)에서 관리
 
 	// 1초마다 틱
 	GetWorld()->GetTimerManager().SetTimer(
@@ -73,13 +72,7 @@ void ABFGameState::HandleCountdownTick()
 	if (CountdownTime <= 0)
 	{
 		GetWorld()->GetTimerManager().ClearTimer(CountdownTimerHandle);
-		CountdownTime = 0;
-
-		// 델리게이트 발동
 		OnCountdownFinished.Broadcast();
-
-		// 플레이 상태로 전환
-		SetGamePhase(EBFGamePhase::Playing);
 	}
 
 	// 서버 로컬 이벤트 발동 (복제는 자동)
@@ -112,7 +105,8 @@ void ABFGameState::OnRep_CountdownTime()
 {
 	OnCountdownChanged.Broadcast(CountdownTime);
 
-	if (CountdownTime <= 0)
+	// 클라이언트에서만 Finished 발동 (서버는 HandleCountdownTick에서 직접 호출)
+	if (CountdownTime <= 0 && !HasAuthority())
 	{
 		OnCountdownFinished.Broadcast();
 	}
