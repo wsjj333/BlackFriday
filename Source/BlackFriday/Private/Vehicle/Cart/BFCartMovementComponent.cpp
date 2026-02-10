@@ -9,6 +9,11 @@ UBFCartMovementComponent::UBFCartMovementComponent()
 	SetIsReplicatedByDefault(true); // 컴포넌트 RPC 안정성(권장)
 }
 
+bool UBFCartMovementComponent::IsDrifting() const
+{
+	return bIsDrifting;
+}
+
 void UBFCartMovementComponent::SetCart(ABFCartPawn* InCart)
 {
 	Cart = InCart;
@@ -27,6 +32,7 @@ void UBFCartMovementComponent::SetDriving(bool bInDriving)
 			Server_SetCartSteeringAxis(0.f);
 		}
 	}
+	
 }
 
 void UBFCartMovementComponent::Input_AccelTriggered(const FInputActionValue& Value)
@@ -57,6 +63,28 @@ void UBFCartMovementComponent::Input_SteerEnded(const FInputActionValue& Value)
 	Server_SetCartSteeringAxis(0.f);
 }
 
+void UBFCartMovementComponent::Input_DriftStarted(const FInputActionValue& Value)
+{
+	if (!CanSendInput()) return;
+	
+	const float Angle = Value.Get<float>();
+	
+	// TODO: 매직넘버 수정(Rep_SteeringMultiplier 값의 2배를 의도함)
+	Server_SetCartSteeringMultiplier(4.0f);
+	bIsDrifting = true;
+}
+
+void UBFCartMovementComponent::Input_DriftEnded(const FInputActionValue& Value)
+{
+	if (!CanSendInput()) return;
+	
+	const float Angle = Value.Get<float>();
+	
+	// TODO: 매직넘버 수정(Rep_SteeringMultiplier 원래 값을 의도함)
+	Server_SetCartSteeringMultiplier(2.0f);
+	bIsDrifting = false;
+}
+
 bool UBFCartMovementComponent::CanSendInput() const
 {
 	const AActor* OwnerActor = GetOwner();
@@ -73,6 +101,13 @@ bool UBFCartMovementComponent::CanSendInput() const
 	if (!Cart.IsValid()) return false;
 
 	return true;
+}
+
+void UBFCartMovementComponent::Server_SetCartSteeringMultiplier_Implementation(float Multiplier)
+{
+	if (!Cart.IsValid()) return;
+	
+	Cart->SetSteeringMultiplier_Server(Multiplier);
 }
 
 void UBFCartMovementComponent::Server_SetCartAccelerationAxis_Implementation(float Axis)

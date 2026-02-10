@@ -1,60 +1,57 @@
 #include "Character/Pusher/BFPusher.h"
-
-#include "EnhancedInputSubsystems.h"
-#include "EnhancedInputComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "Vehicle/Cart/BFCartPawn.h"
-#include "Character/Common/BFCharacterAnimInstance.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "Net/UnrealNetwork.h"
+#include "Component/BFPhysicsMovementComponent.h"
+#include "Component/BFNetworkPhysicsComponent.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
+#include "Character/Common/BFCharacterAnimInstance.h"
+#include "Character/Pusher/Components/BFCharacterAppearanceComponent.h"
+#include "Character/Pusher/Components/BFPusherDriveComponent.h"
+#include "Character/Pusher/Components/BFPusherInputComponent.h"
+#include "Vehicle/Cart/BFCartPawn.h"
 
 ABFPusher::ABFPusher()
 {
-	bReplicates = true;
-	
+	// 물리 이동 컴포넌트
+	PhysicsMoveComp = CreateDefaultSubobject<UBFPhysicsMovementComponent>(TEXT("PhysicsMoveComp"));
+
+	// 네트워크 물리 동기화 컴포넌트
+	NetPhysicsComp = CreateDefaultSubobject<UBFNetworkPhysicsComponent>(TEXT("NetPhysicsComp"));
+
+	// 카트 조종 컴포넌트
 	CartDrivingComp = CreateDefaultSubobject<UBFCartMovementComponent>(TEXT("CartDrivingComp"));
-
-	GetCapsuleComponent()->SetCapsuleHalfHeight(110.0f);
-
-	GetMesh()->SetRelativeLocation(FVector(0.0f, 0.0f, -110.0f));
-	GetMesh()->SetRelativeRotation(FRotator(0.0f, 0.0f, -90.0f));
+	
+	// 푸셔 조종 컴포넌트
+	PusherInputComp = CreateDefaultSubobject<UBFPusherInputComponent>(TEXT("PusherInputComp"));
+	
+	// 운전 관련 컴포넌트
+	PusherDriveComp = CreateDefaultSubobject<UBFPusherDriveComponent>(TEXT("PusherDriveComp"));
+	
+	// 외형 컴포넌트
+	AppearanceComp = CreateDefaultSubobject<UBFCharacterAppearanceComponent>(TEXT("AppearanceComp"));
 }
 
-void ABFPusher::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+bool ABFPusher::IsDriving() const
 {
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	return PusherDriveComp ? PusherDriveComp->IsDriving() : false;
+}
 
-	DOREPLIFETIME(ABFPusher, CharacterType);
-	DOREPLIFETIME(ABFPusher, Cart);
-	DOREPLIFETIME(ABFPusher, bIsDriving);
+ABFCartPawn* ABFPusher::GetCart() const
+{
+	return PusherDriveComp ? PusherDriveComp->GetCart() : nullptr;
+}
+
+void ABFPusher::SetCart(ABFCartPawn* NewCart) const
+{
+	if (PusherDriveComp) PusherDriveComp->SetCart(NewCart);
 }
 
 void ABFPusher::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// 서버가 CharacterType을 소스로 갖고, 클라는 OnRep로 반영
-	if (HasAuthority())
+	
+	if (PusherInputComp && NetPhysicsComp)
 	{
-		OnRep_CharacterType();
-	}
-
-	// 입력 매핑은 로컬만
-	if (IsLocallyControlled())
-	{
-		if (APlayerController* PC = Cast<APlayerController>(Controller))
-		{
-			if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
-			{
-				if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
-					LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-				{
-					Subsystem->AddMappingContext(PusherMappingContext, 0);
-				}
-			}
-		}
+		PusherInputComp->SetInputSink(TScriptInterface<IBFInputSink>(NetPhysicsComp));
 	}
 
 	RefreshAnimInstanceCache();
@@ -62,9 +59,13 @@ void ABFPusher::BeginPlay()
 
 void ABFPusher::RefreshAnimInstanceCache()
 {
-	if (USkeletalMeshComponent* MeshComp = GetMesh())
-	{
-		CachedAnimInstance = Cast<UBFCharacterAnimInstance>(MeshComp->GetAnimInstance());
+	if (const USkeletalMeshComponent* MeshComp = GetMesh())
+	{	
+		UAnimInstance* Current = MeshComp->GetAnimInstance();
+		if (CachedAnimInstance != Current)
+		{
+			CachedAnimInstance = Cast<UBFCharacterAnimInstance>(Current);
+		}
 	}
 }
 
@@ -72,22 +73,17 @@ void ABFPusher::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (!CachedAnimInstance)
-	{
-		RefreshAnimInstanceCache();
-	}
-
-	// IK는 “복제된 Cart의 Transform” 기반으로 각자 계산해도 OK
-	if (!bIsDriving || !Cart || !CachedAnimInstance)
+	if (!IsDriving() || !GetCart() || !CachedAnimInstance)
 	{
 		return;
 	}
-
-	USkeletalMeshComponent* MeshComp = GetMesh();
+	
+	const USkeletalMeshComponent* MeshComp = GetMesh();
 	if (!MeshComp) return;
 
-	const FTransform HandleL_WS = Cart->GetHandleLTransform();
-	const FTransform HandleR_WS = Cart->GetHandleRTransform();
+	// IK: 핸들 위치 계산
+	const FTransform HandleL_WS = GetCart()->GetHandleLTransform();
+	const FTransform HandleR_WS = GetCart()->GetHandleRTransform();
 
 	const FTransform HandleL_CS = HandleL_WS.GetRelativeTransform(MeshComp->GetComponentTransform());
 	const FTransform HandleR_CS = HandleR_WS.GetRelativeTransform(MeshComp->GetComponentTransform());
@@ -105,263 +101,55 @@ void ABFPusher::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		return;
 	}
 
-	UEnhancedInputComponent* EnhancedInput = CastChecked<UEnhancedInputComponent>(PlayerInputComponent);
-
-	EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ABFPusher::HandleMoveInput);
-	
-	EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABFPusher::HandleLookInput);
-	
-	EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ABFPusher::OnJumpPressed);
-	EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ABFPusher::OnJumpReleased);
-	
-	EnhancedInput->BindAction(DriveModeAction, ETriggerEvent::Started, this, &ABFPusher::OnToggleDriveModePressed);
-
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Started, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_AccelTriggered);
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Completed, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_AccelEnded);
-	EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Canceled, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_AccelEnded);
-
-	EnhancedInput->BindAction(SteerAction, ETriggerEvent::Triggered, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_SteerTriggered);
-	EnhancedInput->BindAction(SteerAction, ETriggerEvent::Completed, CartDrivingComp.Get(), &UBFCartMovementComponent::Input_SteerEnded);
+	if (PusherInputComp)
+	{
+		PusherInputComp->BindInput(PlayerInputComponent);
+	}
 }
 
-void ABFPusher::HandleMoveInput(const FInputActionValue& Value)
+void ABFPusher::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
-	if (bIsDriving)
-	{
-		return;
-	}
-	
-	const FVector2D MoveAxis = Value.Get<FVector2D>();
-
-	const float MoveX = MoveAxis.X;
-	const float MoveY = MoveAxis.Y;
-
-	const FRotator ControlRot = GetControlRotation();
-	FRotator RotForMove(0.0f, ControlRot.Yaw, 0.0f);
-
-	FVector WorldDirection = UKismetMathLibrary::GetRightVector(RotForMove);
-	AddMovementInput(WorldDirection, MoveX);
-
-	WorldDirection = UKismetMathLibrary::GetForwardVector(RotForMove);
-	AddMovementInput(WorldDirection, MoveY);
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 }
 
-void ABFPusher::HandleLookInput(const FInputActionValue& Value)
+void ABFPusher::SetPhysicsEnabled(bool bEnabled) const
 {
-	if (!IsLocallyControlled())
+	bEnabled = true;
+	if (CapsuleComp)
 	{
-		return;
-	}
-
-	const FVector2D LookAxis = Value.Get<FVector2D>();
-	const float LookX = LookAxis.X;
-	const float LookY = LookAxis.Y;
-
-	if (bIsDriving)
-	{
-		APlayerController* PC = Cast<APlayerController>(GetController());
-		if (!PC || !PC->IsLocalController())
+		CapsuleComp->SetSimulatePhysics(bEnabled);
+		if (bEnabled)
 		{
-			return;
-		}
-
-		FRotator ControlRot = PC->GetControlRotation();
-		ControlRot.Yaw += LookX;
-		ControlRot.Pitch += LookY;
-
-		PC->SetControlRotation(ControlRot);
-		HardClampControlRotation();
-	}
-	else
-	{
-		AddControllerYawInput(LookX);
-		AddControllerPitchInput(LookY);
-	}
-}
-
-void ABFPusher::OnJumpPressed(const FInputActionValue& Value)
-{
-	Jump();
-}
-
-void ABFPusher::OnJumpReleased(const FInputActionValue& Value)
-{
-	StopJumping();
-}
-
-void ABFPusher::OnToggleDriveModePressed(const FInputActionValue& Value)
-{
-	if (!Cart) return;
-
-	// 드라이빙 토글은 서버가 결정(복제)
-	if (HasAuthority())
-	{
-		ServerToggleDrivingMode(); // 서버에서도 한 경로로
-	}
-	else
-	{
-		ServerToggleDrivingMode();
-	}
-}
-
-void ABFPusher::ToggleDrivingMode()
-{
-	// 외부(BP)에서 호출해도 서버로 라우팅
-	if (HasAuthority())
-	{
-		ServerToggleDrivingMode();
-	}
-	else
-	{
-		ServerToggleDrivingMode();
-	}
-}
-
-void ABFPusher::ServerToggleDrivingMode_Implementation()
-{
-	bIsDriving = !bIsDriving;
-
-	ApplyDrivingAttachment_Server(bIsDriving);
-
-	// 서버 자신도 로컬 상태 반영
-	OnRep_IsDriving();
-}
-
-void ABFPusher::ApplyDrivingAttachment_Server(bool bAttach)
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	if (bAttach)
-	{
-		if (!Cart) return;
-
-		USceneComponent* StandAnker = Cart->GetPusherStandAnkerComponent();
-		if (!StandAnker) return;
-
-		const FAttachmentTransformRules Rules(
-			EAttachmentRule::SnapToTarget,
-			EAttachmentRule::SnapToTarget,
-			EAttachmentRule::KeepWorld,
-			true);
-
-		AttachToComponent(StandAnker, Rules);
-	}
-	else
-	{
-		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-	}
-}
-
-void ABFPusher::SetCurrentSkeletalMeshAsset(EBFCharacterType NewCharacterType)
-{
-	if (HasAuthority())
-	{
-		ServerSetCharacterType(NewCharacterType);
-	}
-	else
-	{
-		ServerSetCharacterType(NewCharacterType);
-	}
-}
-
-void ABFPusher::ServerSetCharacterType_Implementation(EBFCharacterType NewType)
-{
-	const bool bIsValid =
-		StaticEnum<EBFCharacterType>()->IsValidEnumValue(static_cast<int64>(NewType)) &&
-		NewType != EBFCharacterType::None;
-
-	if (!bIsValid) return;
-
-	CharacterType = NewType;
-	OnRep_CharacterType();
-}
-
-void ABFPusher::OnRep_CharacterType()
-{
-	if (CharacterType == EBFCharacterType::None) return;
-
-	if (TSoftObjectPtr<USkeletalMesh>* Found = CharacterMeshMap.Find(CharacterType))
-	{
-		if (USkeletalMesh* MeshAsset = Found->LoadSynchronous())
-		{
-			if (GetMesh())
+			CapsuleComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			if (CapsuleComp->GetBodyInstance())
 			{
-				GetMesh()->SetSkeletalMeshAsset(MeshAsset);
+				CapsuleComp->GetBodyInstance()->WakeInstance();
 			}
 		}
+		else
+		{
+			CapsuleComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		}
 	}
 
-	RefreshAnimInstanceCache();
-}
-
-void ABFPusher::SetCart(ABFCartPawn* NewCart)
-{
-	// 서버는 즉시 세팅 (RPC 금지)
-	if (HasAuthority())
+	// NetPhysicsComp가 매 틱마다 물리를 다시 활성화하는 것을 방지
+	if (NetPhysicsComp)
 	{
-		Cart = NewCart;
-		OnRep_Cart();
-		return;
+		NetPhysicsComp->SetComponentTickEnabled(bEnabled);
 	}
 
-	// 클라는 "내가 소유한 Pusher"에서만 서버에 요청 가능
-	if (!IsLocallyControlled())
+	if (PhysicsMoveComp)
 	{
-		return; // <- 핵심: 원격 Pusher(시뮬프록시)에서 RPC 호출 금지
-	}
-
-	ServerSetCart(NewCart);
-}
-
-void ABFPusher::ServerSetCart_Implementation(ABFCartPawn* NewCart)
-{
-	Cart = NewCart;
-	OnRep_Cart();
-}
-
-void ABFPusher::OnRep_Cart()
-{
-	if (CartDrivingComp)
-	{
-		CartDrivingComp->SetCart(Cart);
-	}
-
-	// UI/캐시 갱신 같은 로컬 처리만
-	RefreshAnimInstanceCache();
-}
-
-void ABFPusher::OnRep_IsDriving()
-{
-	//ApplyDrivingState_Local(bIsDriving);
-
-	if (CartDrivingComp)
-	{
-		CartDrivingComp->SetDriving(bIsDriving);
+		PhysicsMoveComp->SetComponentTickEnabled(bEnabled);
 	}
 }
 
-void ABFPusher::HardClampControlRotation()
+void ABFPusher::AdjustActorLocationByZOffset()
 {
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!PC || !PC->IsLocalController()) return;
-
-	const FRotator Original = PC->GetControlRotation();
-	FRotator Clamped = Original;
-
-	Clamped.Pitch = FMath::Clamp(Clamped.Pitch, -90.f, 90.f);
-
-	const float ActorYaw = GetActorRotation().Yaw;
-	float OffsetYaw = FMath::FindDeltaAngleDegrees(ActorYaw, Clamped.Yaw);
-	OffsetYaw = FMath::Clamp(OffsetYaw, -90.f, 90.f);
-	Clamped.Yaw = ActorYaw + OffsetYaw;
-
-	Clamped.Roll = 0.f;
-
-	if (!Original.Equals(Clamped, 0.01f))
+	// 캡슐 중심 기준이므로 HalfHeight만큼 위로 오프셋
+	if (CapsuleComp)
 	{
-		PC->SetControlRotation(Clamped);
+		const float HalfHeight = CapsuleComp->GetScaledCapsuleHalfHeight();
+		SetActorRelativeLocation(FVector(0.f, 0.f, HalfHeight - 10));
 	}
 }

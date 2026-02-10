@@ -1,6 +1,4 @@
 #include "Vehicle/Cart/BFCartPawn.h"
-
-#include "EnhancedInputComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -31,7 +29,8 @@ ABFCartPawn::ABFCartPawn()
 	CartBody->SetupAttachment(Root);
 
 	CartHandle = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CartHandle"));
-	CartHandle->SetupAttachment(Root);
+	CartHandle->SetupAttachment(CartBody);
+	CartHandle->SetAbsolute(false, false, false);
 
 	Pivot = CreateDefaultSubobject<USceneComponent>(TEXT("Pivot"));
 	Pivot->SetupAttachment(Root);
@@ -97,6 +96,157 @@ void ABFCartPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ABFCartPawn, Rep_Acceleration);
 	DOREPLIFETIME(ABFCartPawn, Rep_DriftSteer);
 	DOREPLIFETIME(ABFCartPawn, Rep_DriftRotation);
+	DOREPLIFETIME(ABFCartPawn, Rep_SteeringMultiplier);
+}
+
+void ABFCartPawn::RequestUpright()
+{
+	if (!CanRequestReset())
+		return;
+
+	// 클라면 서버에 요청
+	if (!HasAuthority())
+	{
+		Server_RequestUpright();
+		return;
+	}
+
+	// 서버(또는 리슨서버 로컬)면 즉시 수행
+	DoUprightReset_ServerAuth();
+}
+
+bool ABFCartPawn::IsFlipped() const
+{
+	// const FVector WorldUp = FVector::UpVector;
+	// const FVector CartUp = GetActorUpVector();
+	//
+	// const float Dot = FVector::DotProduct(CartUp, WorldUp);
+	// return Dot < FlipDotThreshold;
+	
+	const float Dot = FVector::DotProduct(GetActorUpVector(), FVector::UpVector);
+	return Dot < UprightDotThreshold;
+}
+
+void ABFCartPawn::DoUprightReset_ServerAuth()
+{
+	if (!HasAuthority())
+		return;
+
+	if (!Root)
+		return;
+
+	// 연타 방지
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (LastResetTimeSeconds > 0 && (Now - LastResetTimeSeconds) < ResetCooldown)
+		return;
+
+	// 물리 시뮬 중이 아니면 정책에 따라 처리(여기선 그냥 회전/위치만 보정 가능)
+	const bool bSim = Root->IsSimulatingPhysics();
+
+	// 속도가 너무 빠르면 리셋 금지(원하는 정책대로)
+	const FVector LinVel = bSim ? Root->GetPhysicsLinearVelocity() : FVector::ZeroVector;
+	if (LinVel.Size() > MaxSpeedToAllowReset)
+		return;
+
+	// 뒤집힘이 아니면 굳이 안 함(원하면 "옆으로 누움"도 포함하도록 threshold 조정)
+	if (!IsFlipped())
+		return;
+
+	// ---------- 1) 바닥 찾기(LineTrace) ----------
+	UWorld* World = GetWorld();
+	if (!World)
+		return;
+
+	const FVector Start = GetActorLocation() + FVector::UpVector * TraceUpDistance;
+	const FVector End   = GetActorLocation() - FVector::UpVector * TraceDownDistance;
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(CartResetTrace), false, this);
+	Params.bReturnPhysicalMaterial = false;
+
+	FHitResult Hit;
+	const bool bHit = World->LineTraceSingleByChannel(
+		Hit, Start, End, ECC_Visibility, Params
+	);
+
+	// 디버그 원하면:
+	// DrawDebugLine(World, Start, End, bHit ? FColor::Green : FColor::Red, false, 1.f, 0, 2.f);
+
+	const FVector GroundNormal = bHit ? Hit.ImpactNormal.GetSafeNormal() : FVector::UpVector;
+
+	// ---------- 2) 목표 회전 계산 ----------
+	// "현재 전방(Forward)"을 바닥 평면에 투영해 Yaw 느낌 유지
+	FVector Forward = GetActorForwardVector();
+	Forward = FVector::VectorPlaneProject(Forward, GroundNormal).GetSafeNormal();
+	if (Forward.IsNearlyZero())
+	{
+		// 극단적 케이스: Up/Forward가 꼬이면 임의로 X축 사용
+		Forward = FVector::VectorPlaneProject(FVector::ForwardVector, GroundNormal).GetSafeNormal();
+	}
+
+	const FVector Up = bAlignToGroundNormal ? GroundNormal : FVector::UpVector;
+
+	// Forward, Up으로 안정적인 회전 구성(우측 = Up x Forward)
+	const FVector Right = FVector::CrossProduct(Up, Forward).GetSafeNormal();
+	const FVector OrthoForward = FVector::CrossProduct(Right, Up).GetSafeNormal();
+
+	const FRotator TargetRot =
+	FRotationMatrix::MakeFromXZ(OrthoForward, Up).Rotator();
+
+	// ---------- 3) 목표 위치 계산 ----------
+	// 바운딩 박스 기반으로 바닥에 박히지 않게 Lift
+	const float Lift = Root->Bounds.BoxExtent.Z + ExtraLift;
+
+	FVector TargetLoc = GetActorLocation();
+	if (bHit)
+	{
+		TargetLoc = Hit.ImpactPoint + Up * Lift;
+	}
+	else
+	{
+		// 바닥 못 찾으면 현재 위치에서 살짝 들어올림
+		TargetLoc = GetActorLocation() + Up * Lift;
+	}
+
+	// ---------- 4) 물리 속도 초기화 + Transform 적용 ----------
+	// 네트워크/물리에서 “강제 순간이동”은 텔레포트 플래그가 중요함.
+	// - 컴포넌트 이동/회전 시 TeleportPhysics 사용.
+	if (bSim)
+	{
+		// 먼저 속도/각속도 제거 (각속도 단위: rad/s)
+		Root->SetPhysicsLinearVelocity(FVector::ZeroVector, false);
+		Root->SetPhysicsAngularVelocityInRadians(FVector::ZeroVector, false);
+
+		// 물리 바디를 텔레포트로 이동/회전
+		Root->SetWorldLocationAndRotation(
+			TargetLoc,
+			TargetRot,
+			false,
+			nullptr,
+			ETeleportType::TeleportPhysics
+		);
+
+		Root->WakeAllRigidBodies();
+	}
+	else
+	{
+		// 물리 시뮬이 아니면 Actor transform만 수정
+		SetActorLocationAndRotation(TargetLoc, TargetRot, false, nullptr, ETeleportType::TeleportPhysics);
+	}
+
+	LastResetTimeSeconds = Now;
+}
+
+void ABFCartPawn::Server_RequestUpright_Implementation()
+{
+	// 서버에서: 실제로 이 Pawn의 소유자가 요청했는지 한 번 더 확인(권장)
+	// - 컨트롤러 소유/플레이어 컨트롤 여부 등 프로젝트 규칙에 맞춰 강화 가능
+
+	DoUprightReset_ServerAuth();
+}
+
+bool ABFCartPawn::CanRequestReset() const
+{
+	return IsLocallyControlled() || HasAuthority();
 }
 
 USceneComponent* ABFCartPawn::GetPusherStandAnkerComponent() const
@@ -162,7 +312,8 @@ void ABFCartPawn::ServerSimTick(float DeltaSeconds)
 	CalculateAcceleration(DeltaSeconds);
 
 	// 토크 적용(서버만)
-	const double TorqueZ = Rep_DriftSteer * SteeringTorque * Rep_AccelerationInput * SteeringMultiplier;
+	const double TorqueZ = Rep_DriftSteer * SteeringTorque * Rep_AccelerationInput * Rep_SteeringMultiplier;
+	// UE_LOG(LogTemp, Warning, TEXT("Rep_DriftSteer: %f | Rep_SteeringMultiplier: %f | TorqueZ: %lf"), Rep_DriftSteer, Rep_SteeringMultiplier, TorqueZ);
 	Root->AddTorqueInRadians(FVector(0.f, 0.f, TorqueZ));
 }
 
@@ -185,8 +336,19 @@ void ABFCartPawn::SetAccelAxis_Server(float Axis)
 void ABFCartPawn::SetSteerAxis_Server(float Axis)
 {
 	if (!HasAuthority()) return;
-	Rep_SteerAxis = Axis; 
-	// Rep_SteerAxis = FMath::Max(Rep_DriftSteer, FMath::Abs(Axis)) * FMath::Sign(Rep_DriftRotation.Yaw);
+	
+	// TODO: 매직넘버 수정(25도 회전을 의도함)
+	Rep_DriftRotation.Yaw = FMath::Sign(Axis) * 25.0f;
+	
+	Rep_SteerAxis = Rep_SteeringMultiplier == 2.0f 
+	? Axis
+	: FMath::Max(Rep_DriftSteer, FMath::Abs(Axis)) * FMath::Sign(Rep_DriftRotation.Yaw);
+}
+
+void ABFCartPawn::SetSteeringMultiplier_Server(const float Multiplier)
+{
+	if (!HasAuthority()) return;
+	Rep_SteeringMultiplier = Multiplier;
 }
 
 void ABFCartPawn::SuspensionCast(USceneComponent* WheelComp) const

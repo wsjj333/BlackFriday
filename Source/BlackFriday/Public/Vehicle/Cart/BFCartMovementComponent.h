@@ -14,6 +14,8 @@ class BLACKFRIDAY_API UBFCartMovementComponent : public UPawnMovementComponent
 
 public:
     UBFCartMovementComponent();
+    
+    bool IsDrifting() const;
 
     // Pusher에서 RepNotify 타이밍에 전달
     void SetCart(ABFCartPawn* InCart);
@@ -26,9 +28,15 @@ public:
     void Input_SteerTriggered(const FInputActionValue& Value);
     void Input_SteerEnded(const FInputActionValue& Value);
     
+    void Input_DriftStarted(const FInputActionValue& Value);
+    void Input_DriftEnded(const FInputActionValue& Value);
+    
 private:
     TWeakObjectPtr<ABFCartPawn> Cart;
+    
     bool bDriving = false;
+    
+    bool bIsDrifting = false;
 
     bool CanSendInput() const;
 
@@ -38,4 +46,7 @@ private:
 
     UFUNCTION(Server, Reliable)
     void Server_SetCartSteeringAxis(float Axis);
+    
+    UFUNCTION(Server, Reliable)
+    void Server_SetCartSteeringMultiplier(float Multiplier);
 };

@@ -76,6 +76,7 @@ DerivedDataCache/*
 
 # JetBrains IDE
 .idea/
+*.DotSettings.user
 
 # Asset Folders
 Content/BlueSky

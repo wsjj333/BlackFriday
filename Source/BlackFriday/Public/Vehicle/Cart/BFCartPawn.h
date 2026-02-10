@@ -6,6 +6,7 @@
 #include "Net/UnrealNetwork.h"
 #include "BFCartPawn.generated.h"
 
+class ABFPusher;
 class USphereComponent;
 class UInputAction;
 class UInputMappingContext;
@@ -23,6 +24,10 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
+	/** 로컬 입력에서 호출(클라는 Server RPC로 위임) */
+	UFUNCTION(BlueprintCallable, Category="Cart|Reset")
+	void RequestUpright();
+	
 	// ----- Getter/Setter -----
 	USceneComponent* GetPusherStandAnkerComponent() const;
 	
@@ -38,15 +43,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	FVector GetCurrentVelocity() const;
 	
-	// ✅ 서버에서만 호출되는 입력축 세터(컴포넌트/서버 코드용)
+	// 서버에서만 호출되는 입력축 세터(컴포넌트/서버 코드용)
 	void SetAccelAxis_Server(float Axis);
 	void SetSteerAxis_Server(float Axis);
+	void SetSteeringMultiplier_Server(const float Multiplier);
 	
-	// 입력 처리
-	// void SetAccelerationInput(const FInputActionValue& Value);
-	// void OnAccelerationEnded(const FInputActionValue& Value);
-	// void SteerCart(const FInputActionValue& Value);
-	// void OnSteeringEnded(const FInputActionValue& Value);
+	USceneComponent* GetPivotComp() const { return Pivot; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -55,6 +57,16 @@ protected:
 	// ----- Physics / Movement -----
 	void SuspensionCast(USceneComponent* WheelComp) const;
 	bool IsOnGround() const;
+	
+	/** 뒤집힘 판정 */
+	bool IsFlipped() const;
+
+	/** 서버 권위에서 실제 복구 수행 */
+	void DoUprightReset_ServerAuth();
+
+	/** 서버 RPC */
+	UFUNCTION(Server, Reliable)
+	void Server_RequestUpright();
 
 	// 서버에서만 호출되는 물리 적용 루틴
 	void ServerSimTick(float DeltaSeconds);
@@ -91,6 +103,9 @@ protected:
 
 	UPROPERTY(Replicated)
 	FRotator Rep_DriftRotation = FRotator::ZeroRotator;
+	
+	UPROPERTY(Replicated, EditDefaultsOnly, Category="BF|Movement")
+	float Rep_SteeringMultiplier = 2.0f;
 
 	// ----- Tunables -----
 	float SpeedModifier = 1.0f;
@@ -101,8 +116,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="BF|Movement")
 	double SteeringTorque = 1500000.0f;
 
-	UPROPERTY(EditAnywhere, Category="BF|Movement")
-	float SteeringMultiplier = 2.0f;
+	// UPROPERTY(EditAnywhere, Category="BF|Movement")
+	// float SteeringMultiplier = 2.0f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Cart")
 	float SuspensionForceMultiplier = 10000000.0f;
@@ -124,19 +139,39 @@ protected:
 	// 클라이언트(AnimInstance/코스메틱)에서 사용할 가속도 캐시
 	UPROPERTY(BlueprintReadOnly, Category="Cart|Anim", Transient)
 	float Acceleration = 0.0f;
-
-	// ----- Input -----
-	UPROPERTY(EditDefaultsOnly, Category = "BF|Input")
-	TObjectPtr<UInputMappingContext> CartMappingContext;
-
-	UPROPERTY(EditDefaultsOnly, Category = "BF|Input")
-	TObjectPtr<UInputAction> AccelerationAction;
-
-	UPROPERTY(EditDefaultsOnly, Category = "BF|Input")
-	TObjectPtr<UInputAction> SteeringAction;
 	
-	UPROPERTY(EditDefaultsOnly, Category = "BF|Input")
-	TObjectPtr<UInputAction> LookAction;
+	UPROPERTY(EditAnywhere, Category="Cart|Reset")
+	float UprightDotThreshold = 0.85f; // 약 31.8도
+
+	/** 너무 빠르게 움직이는 중엔 복구 금지 (공중 회전/드리프트 중 오작동 방지) */
+	UPROPERTY(EditAnywhere, Category="Cart|Reset")
+	float MaxSpeedToAllowReset = 200.f;
+
+	/** 복구 후 바닥에서 띄울 높이(바운딩 박스 기반으로 추가) */
+	UPROPERTY(EditAnywhere, Category="Cart|Reset")
+	float ExtraLift = 5.f;
+
+	/** 라인트레이스 거리(아래로) */
+	UPROPERTY(EditAnywhere, Category="Cart|Reset")
+	float TraceDownDistance = 5000.f;
+
+	/** 라인트레이스 시작 높이(위로) */
+	UPROPERTY(EditAnywhere, Category="Cart|Reset")
+	float TraceUpDistance = 200.f;
+
+	/** 복구 쿨다운(연타 방지) */
+	UPROPERTY(EditAnywhere, Category="Cart|Reset")
+	float ResetCooldown = 1.0f;
+
+	/** 마지막 복구 시간(서버 기준) */
+	double LastResetTimeSeconds = -1.0;
+
+	/** 바닥 노멀에 맞춰 세울지(경사면에서 자연스럽게) */
+	UPROPERTY(EditAnywhere, Category="Cart|Reset")
+	bool bAlignToGroundNormal = true;
+
+	/** 네트워크에서 요청자(주로 owner)만 요청 가능하게 제한 */
+	bool CanRequestReset() const;
 
 	// ----- Components -----
 	UPROPERTY(EditDefaultsOnly)
