@@ -116,7 +116,7 @@ void UBFPhysicsMovementComponent::TickComponent(
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	
-	UE_LOG(LogTemp, Warning, TEXT("AngVelDeg=%s"), *Prim->GetPhysicsAngularVelocityInDegrees().ToCompactString());
+	// UE_LOG(LogTemp, Warning, TEXT("AngVelDeg=%s"), *Prim->GetPhysicsAngularVelocityInDegrees().ToCompactString());
 
 	if (!Prim)
 	{
