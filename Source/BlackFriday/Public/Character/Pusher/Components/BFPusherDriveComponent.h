@@ -37,10 +37,13 @@ public:
 
 	/** 입력 컴포넌트가 카트 입력을 전달할 때 편하게 쓰는 getter */
 	UBFCartMovementComponent* GetCartMovementComponent() const;
-
+	
+	void ApplyOrientToMovement(const bool bEnable);
+	
 protected:
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
 	// ---- Owner Cache ----
@@ -87,7 +90,6 @@ private:
 
 	// ---- Apply helpers ----
 	void ApplyDrivingAttachment_Server(const bool bAttach);
-	void ApplyOrientToMovement(const bool bEnable);
 
 	/** 토글 후 파생 상태 적용(orient, cart movement driving flag 등) */
 	void HandleDrivingStateChanged(const bool bNowDriving);

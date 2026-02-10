@@ -8,7 +8,7 @@
 
 UBFPusherDriveComponent::UBFPusherDriveComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 	SetIsReplicatedByDefault(true);
 }
 
@@ -50,6 +50,27 @@ void UBFPusherDriveComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	DOREPLIFETIME(UBFPusherDriveComponent, Cart);
 	DOREPLIFETIME(UBFPusherDriveComponent, bIsDriving);
 	DOREPLIFETIME(UBFPusherDriveComponent, bOrientToMovement);
+}
+
+void UBFPusherDriveComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
+	FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	
+	if (!bIsDriving)
+	{
+		return;
+	}
+	
+	if (Cart && OwnerPusher)
+	{
+		const float CartYaw = Cart->GetPusherStandAnkerComponent()->GetComponentRotation().Yaw;
+
+		FRotator NewRot = OwnerPusher->GetActorRotation();
+		NewRot.Yaw = CartYaw;
+
+		OwnerPusher->SetActorRotation(NewRot);
+	}
 }
 
 // -------------------- Public API --------------------
@@ -216,11 +237,12 @@ void UBFPusherDriveComponent::ApplyOrientToMovement(const bool bEnable)
 	ABFPusher* Pusher = GetPusher();
 	if (!Pusher) return;
 	
-	// TODO: Pawn에서 구현해야하나?
-	// UCharacterMovementComponent* Move = Pusher->GetCharacterMovement();
-	// if (!Move) return;
-	//
-	// Move->bOrientRotationToMovement = bEnable;
+	const float CartYaw = Cart->GetPivotComp()->GetComponentRotation().Yaw;
+
+	FRotator NewRot = Pusher->GetActorRotation();
+	NewRot.Yaw = CartYaw;
+
+	Pusher->SetActorRotation(NewRot);
 }
 
 void UBFPusherDriveComponent::ApplyDrivingAttachment_Server(const bool bAttach)

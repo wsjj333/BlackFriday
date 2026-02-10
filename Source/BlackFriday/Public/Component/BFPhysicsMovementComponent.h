@@ -11,6 +11,8 @@
 #include "BFPhysicsNetTypes.h"
 #include "BFPhysicsMovementComponent.generated.h"
 
+class UBFNetworkPhysicsComponent;
+
 UCLASS(ClassGroup=(BF), meta=(BlueprintSpawnableComponent))
 class BLACKFRIDAY_API UBFPhysicsMovementComponent : public UPawnMovementComponent
 {
@@ -156,9 +158,36 @@ protected:
 	void CachePrimitive();
 
 	// 상체 물리 애니메이션 초기 설정
-	void SetupUpperBodyPhysics();
+	// void SetupUpperBodyPhysics();
+	
+	// ================= bOrientRotationToMovement =================
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BF|Movement|Rotation")
+	bool bOrientRotationToMovement = true;
+
+	// 초당 yaw 회전량(도/초)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BF|Movement|Rotation")
+	float RotationRateYawDegPerSec = 720.f;
+
+	// 속도가 이 값 미만이면(거의 정지) 방향이 불안정하니 회전 유지
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BF|Movement|Rotation")
+	float MinSpeedToOrient = 30.f;
+
+	// 공중에서도 속도 기준 회전할지
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BF|Movement|Rotation")
+	bool bOrientInAir = true;
+
+	// 충돌 스핀 안전장치(선택)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BF|Movement|Rotation")
+	float MaxYawSpinDegPerSec = 720.f;
+
+	// 스핀 감쇠(권장)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BF|Movement|Rotation")
+	float AngularDamping = 8.f;
 
 private:
+	UPROPERTY(Transient)
+	TObjectPtr<UBFNetworkPhysicsComponent> CachedNetComp;
+	
 	// ================= 입력 상태 =================
 	float MoveX = 0.f;
 	float MoveY = 0.f;
