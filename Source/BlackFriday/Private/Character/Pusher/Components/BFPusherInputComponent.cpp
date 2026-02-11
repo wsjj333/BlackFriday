@@ -222,7 +222,10 @@ void UBFPusherInputComponent::OnMoveInputTriggered(const FInputActionValue& Valu
 
 void UBFPusherInputComponent::OnMoveInputEnded()
 {
-	InputSink->SetMoveInput(FVector2D(0.0f, 0.0f));
+	if (InputSink)
+	{
+		InputSink->SetMoveInput(FVector2D(0.0f, 0.0f));
+	}
 }
 
 void UBFPusherInputComponent::HandleLookInput(const FInputActionValue& Value)
