@@ -76,6 +76,7 @@ DerivedDataCache/*
 
 # JetBrains IDE
 .idea/
+*.DotSettings.user
 
 # Asset Folders
 Content/BlueSky/*
@@ -83,3 +84,12 @@ Content/Hyper-Casual_Character_Pack/*
 Content/Megastore/*
 Content/Poly-MegaSurvivalFood/*
 Content/PublicAsset/*
+Content/BlueSky
+Content/Hyper-Casual_Character_Pack
+Content/Megastore
+Content/Sphere_Drone
+Content/Poly-MegaSurvivalFood
+Content/PublicAsset
+Content/__ExternalActors__
+Content/__ExternalObjects__
+nul
