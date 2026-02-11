@@ -2,7 +2,6 @@
 
 #include "Component/BFNetworkPhysicsComponent.h"
 #include "Component/BFPhysicsMovementComponent.h"
-
 #include "GameFramework/Pawn.h"
 #include "Components/PrimitiveComponent.h"
 #include "Net/UnrealNetwork.h"
@@ -18,35 +17,27 @@ UBFNetworkPhysicsComponent::UBFNetworkPhysicsComponent()
 void UBFNetworkPhysicsComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
 	CachedPawn = Cast<APawn>(GetOwner());
-
 	CacheRefs();
 
-	PrevState = RepState;
-	TargetState = RepState;
+	PrevState = TargetState = RepState;
 	SmoothAlpha = 1.f;
 
 	if (Prim)
 	{
-		APawn* P = CachedPawn;
-
-		const bool bShouldSimulate =
-			(P && (P->HasAuthority() || (P->IsLocallyControlled() && bUseClientPrediction)));
+		APawn* P = Cast<APawn>(GetOwner());
+		const bool bShouldSimulate = (P && (P->HasAuthority() || (P->IsLocallyControlled() && bUseClientPrediction)));
 
 		if (bShouldSimulate)
 		{
 			Prim->SetCollisionProfileName(TEXT("PhysicsActor"));
 			Prim->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 			Prim->SetSimulatePhysics(true);
-
-			if (Prim->GetBodyInstance())
-				Prim->GetBodyInstance()->WakeInstance();
+			if (Prim->GetBodyInstance()) Prim->GetBodyInstance()->WakeInstance();
 		}
 		else
 		{
 			Prim->SetSimulatePhysics(false);
-
 			if (bDisableCollisionWhenNotSimulating)
 				Prim->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			else
@@ -58,38 +49,25 @@ void UBFNetworkPhysicsComponent::BeginPlay()
 void UBFNetworkPhysicsComponent::CacheRefs()
 {
 	if (!MoveComp)
-	{
-		MoveComp = GetOwner()
-			? GetOwner()->FindComponentByClass<UBFPhysicsMovementComponent>()
-			: nullptr;
-	}
+		MoveComp = GetOwner() ? GetOwner()->FindComponentByClass<UBFPhysicsMovementComponent>() : nullptr;
 
 	if (!Prim)
 	{
 		if (MoveComp && MoveComp->PhysicsPrimitiveOverride)
-		{
 			Prim = MoveComp->PhysicsPrimitiveOverride;
-		}
 		else if (AActor* Owner = GetOwner())
-		{
 			Prim = Cast<UPrimitiveComponent>(Owner->GetRootComponent());
-		}
 	}
 }
 
-void UBFNetworkPhysicsComponent::GetLifetimeReplicatedProps(
-	TArray<FLifetimeProperty>& OutLifetimeProps) const
+void UBFNetworkPhysicsComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
 	DOREPLIFETIME_CONDITION(UBFNetworkPhysicsComponent, RepState, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(UBFNetworkPhysicsComponent, RepStateOwner, COND_OwnerOnly);
 }
 
-void UBFNetworkPhysicsComponent::TickComponent(
-	float DeltaTime,
-	ELevelTick TickType,
-	FActorComponentTickFunction* ThisTickFunction)
+void UBFNetworkPhysicsComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -97,85 +75,58 @@ void UBFNetworkPhysicsComponent::TickComponent(
 	if (!Prim || !CachedPawn) return;
 
 	APawn* P = CachedPawn;
-
 	const bool bIsAuthority = P->HasAuthority();
 	const bool bIsLocal = P->IsLocallyControlled();
-
-	// -------------------------------
-	// 물리 시뮬레이션 활성/비활성 관리
-	// -------------------------------
+	
+	// 물리 시뮬레이션 상태 관리
 	const bool bShouldSimulate = bIsAuthority || (bIsLocal && bUseClientPrediction);
-
 	if (bShouldSimulate)
 	{
-		if (!Prim->IsSimulatingPhysics() ||
-			Prim->GetCollisionEnabled() != ECollisionEnabled::QueryAndPhysics)
+		if (!Prim->IsSimulatingPhysics() || Prim->GetCollisionEnabled() != ECollisionEnabled::QueryAndPhysics)
 		{
 			Prim->SetCollisionProfileName(TEXT("PhysicsActor"));
 			Prim->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 			Prim->SetSimulatePhysics(true);
-
-			if (Prim->GetBodyInstance())
-				Prim->GetBodyInstance()->WakeInstance();
+			if (Prim->GetBodyInstance()) Prim->GetBodyInstance()->WakeInstance();
 		}
 	}
 	else
 	{
-		if (Prim->IsSimulatingPhysics())
-			Prim->SetSimulatePhysics(false);
-
-		const ECollisionEnabled::Type TargetCol =
-			bDisableCollisionWhenNotSimulating
-			? ECollisionEnabled::NoCollision
-			: ECollisionEnabled::QueryOnly;
-
-		if (Prim->GetCollisionEnabled() != TargetCol)
-			Prim->SetCollisionEnabled(TargetCol);
+		if (Prim->IsSimulatingPhysics()) Prim->SetSimulatePhysics(false);
+		
+		ECollisionEnabled::Type TargetCol = bDisableCollisionWhenNotSimulating ? ECollisionEnabled::NoCollision : ECollisionEnabled::QueryOnly;
+		if (Prim->GetCollisionEnabled() != TargetCol) Prim->SetCollisionEnabled(TargetCol);
 	}
 
-	// -------------------------------
-	// 입력 처리 (로컬만)
-	// -------------------------------
 	if (bIsLocal)
 	{
 		ClientFrameCounter++;
-
 		FBFMoveInputNet Input = BuildInputPacket();
-
-		if (MoveComp)
-			MoveComp->SetCurrentInput(Input);
+		
+		if (MoveComp) MoveComp->SetCurrentInput(Input);
 
 		if (bIsAuthority)
 		{
 			ServerInput = Input;
-
-			if (Input.Buttons & 0x01)
-				bJumpHoldLatched = false;
+			if (Input.Buttons & 0x01) bJumpHoldLatched = false;
 		}
 		else
 		{
 			InputSendAccum += DeltaTime;
-
 			const float SendInterval = (InputSendHz > 1.f) ? (1.f / InputSendHz) : 0.f;
-
+			
 			if (InputSendAccum >= SendInterval)
 			{
 				InputSendAccum = 0.f;
 				ServerReceiveInput(Input);
-
-				if (Input.Buttons & 0x01)
-					bJumpHoldLatched = false;
+				if (Input.Buttons & 0x01) bJumpHoldLatched = false;
 			}
 		}
 	}
 
-	// -------------------------------
-	// 서버: 상태 생성 및 복제
-	// -------------------------------
 	if (bIsAuthority)
 	{
-		if (MoveComp)
-			MoveComp->SetCurrentInput(ServerInput);
+		if (MoveComp) MoveComp->SetCurrentInput(ServerInput);
 
 		OwnerStateSendAccum += DeltaTime;
 		ProxyStateSendAccum += DeltaTime;
@@ -197,73 +148,43 @@ void UBFNetworkPhysicsComponent::TickComponent(
 		if (ProxyInterval > 0.f && ProxyStateSendAccum >= ProxyInterval)
 		{
 			ProxyStateSendAccum = 0.f;
-			if (!bBuilt)
-			{
-				NewState = BuildState();
-				bBuilt = true;
-			}
+			if (!bBuilt) { NewState = BuildState(); bBuilt = true; }
 			RepState = NewState;
 		}
 	}
 
-	// -------------------------------
-	// 클라이언트 상태 보정
-	// -------------------------------
 	if (!bIsAuthority && !bIsLocal)
 	{
-		ApplyRemoteSmoothing(DeltaTime); // SimulatedProxy
+		ApplyRemoteSmoothing(DeltaTime);
 	}
 	else if (!bIsAuthority && bIsLocal)
 	{
-		if (!bUseClientPrediction)
-			ApplyRemoteSmoothing(DeltaTime);
-		else
-			ApplyOwnerReconcile(DeltaTime);
+		if (!bUseClientPrediction) ApplyRemoteSmoothing(DeltaTime);
+		else ApplyOwnerReconcile(DeltaTime);
 	}
 }
 
 FBFPhysicsState UBFNetworkPhysicsComponent::BuildState() const
 {
 	FBFPhysicsState S;
-
 	if (Prim)
 	{
-		S.Pos       = Prim->GetComponentLocation();
-		S.Rot       = Prim->GetComponentRotation();
-		S.LinVel    = Prim->GetPhysicsLinearVelocity();
+		S.Pos = Prim->GetComponentLocation();
+		S.Rot = Prim->GetComponentRotation();
+		S.LinVel = Prim->GetPhysicsLinearVelocity();
 		S.AngVelDeg = Prim->GetPhysicsAngularVelocityInDegrees();
 	}
-
 	S.ServerTime = GetWorld()->GetTimeSeconds();
 	return S;
 }
 
-FVector UBFNetworkPhysicsComponent::GetMoveInputWorldSpace() const
+void UBFNetworkPhysicsComponent::GetLastServerStateBP(FVector& OutPos, FRotator& OutRot, FVector& OutLinVel, FVector& OutAngVel, float& OutTime) const
 {
-	if (LocalMove.IsNearlyZero())
-		return FVector::ZeroVector;
-
-	const FRotator ControlRot(0.f, LocalYaw, 0.f);
-
-	const FVector Forward = FRotationMatrix(ControlRot).GetUnitAxis(EAxis::X);
-	const FVector Right   = FRotationMatrix(ControlRot).GetUnitAxis(EAxis::Y);
-
-	FVector MoveWS = Forward * LocalMove.X + Right * LocalMove.Y;
-	return MoveWS.GetClampedToMaxSize(1.f);
-}
-
-void UBFNetworkPhysicsComponent::GetLastServerStateBP(
-	FVector& OutPos,
-	FRotator& OutRot,
-	FVector& OutLinVel,
-	FVector& OutAngVel,
-	float& OutTime) const
-{
-	OutPos    = FVector(RepState.Pos);
-	OutRot    = RepState.Rot;
-	OutLinVel = FVector(RepState.LinVel);
-	OutAngVel = FVector(RepState.AngVelDeg);
-	OutTime   = RepState.ServerTime;
+	OutPos = (FVector)RepState.Pos;
+	OutRot = RepState.Rot;
+	OutLinVel = (FVector)RepState.LinVel;
+	OutAngVel = (FVector)RepState.AngVelDeg;
+	OutTime = RepState.ServerTime;
 }
 
 void UBFNetworkPhysicsComponent::SetHighPriorityMode(bool bEnable)
@@ -272,11 +193,13 @@ void UBFNetworkPhysicsComponent::SetHighPriorityMode(bool bEnable)
 	{
 		if (bEnable)
 		{
+			// 중요 상황
 			P->NetUpdateFrequency = 120.f;
 			P->MinNetUpdateFrequency = 90.f;
 		}
 		else
 		{
+			// 평상시
 			P->NetUpdateFrequency = 30.f;
 			P->MinNetUpdateFrequency = 10.f;
 		}
