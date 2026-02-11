@@ -181,9 +181,6 @@ protected:
 	TObjectPtr<UStaticMeshComponent> CartBody;
 
 	UPROPERTY(EditDefaultsOnly)
-	TObjectPtr<UStaticMeshComponent> CartHandle;
-
-	UPROPERTY(EditDefaultsOnly)
 	TObjectPtr<USceneComponent> Pivot;
 
 	UPROPERTY(EditDefaultsOnly)

@@ -28,10 +28,6 @@ ABFCartPawn::ABFCartPawn()
 	CartBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CartBody"));
 	CartBody->SetupAttachment(Root);
 
-	CartHandle = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CartHandle"));
-	CartHandle->SetupAttachment(CartBody);
-	CartHandle->SetAbsolute(false, false, false);
-
 	Pivot = CreateDefaultSubobject<USceneComponent>(TEXT("Pivot"));
 	Pivot->SetupAttachment(Root);
 
@@ -79,10 +75,10 @@ ABFCartPawn::ABFCartPawn()
 	PusherStandAnker->SetupAttachment(Pivot);
 
 	HandleL = CreateDefaultSubobject<USceneComponent>(TEXT("HandleL"));
-	HandleL->SetupAttachment(CartHandle);
+	HandleL->SetupAttachment(CartBody);
 
 	HandleR = CreateDefaultSubobject<USceneComponent>(TEXT("HandleR"));
-	HandleR->SetupAttachment(CartHandle);
+	HandleR->SetupAttachment(CartBody);
 }
 
 void ABFCartPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
