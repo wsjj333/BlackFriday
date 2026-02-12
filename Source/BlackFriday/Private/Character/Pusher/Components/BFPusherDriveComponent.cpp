@@ -162,13 +162,13 @@ void UBFPusherDriveComponent::ServerToggleDrivingMode_Implementation()
 	ABFPusher* Pusher = GetPusher();
 	if (!Pusher) return;
 
-	bIsDriving = !bIsDriving;
-
 	// 서버에서 실제 부착/해제
-	ApplyDrivingAttachment_Server(bIsDriving);
+	ApplyDrivingAttachment_Server(!bIsDriving);
 
 	// 서버 자신도 즉시 로컬 처리(서버도 플레이어일 수 있음)
-	HandleDrivingStateChanged(bIsDriving);
+	HandleDrivingStateChanged(!bIsDriving);
+	
+	bIsDriving = !bIsDriving;
 }
 
 void UBFPusherDriveComponent::ServerSetCart_Implementation(ABFCartPawn* NewCart)
@@ -237,6 +237,7 @@ void UBFPusherDriveComponent::ApplyOrientToMovement(const bool bEnable)
 	ABFPusher* Pusher = GetPusher();
 	if (!Pusher) return;
 	
+	if (!Cart) return;
 	const float CartYaw = Cart->GetPivotComp()->GetComponentRotation().Yaw;
 
 	FRotator NewRot = Pusher->GetActorRotation();
@@ -262,6 +263,8 @@ void UBFPusherDriveComponent::ApplyDrivingAttachment_Server(const bool bAttach)
 		USceneComponent* StandAnker = Cart->GetPusherStandAnkerComponent();
 		if (!StandAnker) return;
 		
+		Pusher->SetActorRotation(StandAnker->GetComponentRotation());
+		
 		Pusher->SetPhysicsEnabled(false);
 
 		const FAttachmentTransformRules Rules(
@@ -270,8 +273,10 @@ void UBFPusherDriveComponent::ApplyDrivingAttachment_Server(const bool bAttach)
 			EAttachmentRule::KeepWorld,
 			true);
 
-		Pusher->AttachToComponent(StandAnker, Rules);
+		// Pusher->GetMesh()->SetWorldTransform(Pusher->GetActorTransform());
 		
+		Pusher->AttachToComponent(StandAnker, Rules);
+
 		// Pusher->AdjustActorLocationByZOffset();
 	}
 	else

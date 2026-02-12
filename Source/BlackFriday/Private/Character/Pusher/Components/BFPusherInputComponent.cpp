@@ -216,7 +216,7 @@ void UBFPusherInputComponent::OnMoveInputTriggered(const FInputActionValue& Valu
 	
 	if (InputSink)
 	{
-		InputSink->SetMoveInput(MoveAxis);
+		InputSink->SetMoveInput(FVector2D(MoveAxis.Y, MoveAxis.X));
 	}
 }
 
@@ -251,7 +251,7 @@ void UBFPusherInputComponent::HandleLookInput(const FInputActionValue& Value)
 		FRotator ControlRot = PC->GetControlRotation();
 		ControlRot.Yaw += LookX;
 		ControlRot.Pitch += LookY;
-	
+		
 		PC->SetControlRotation(ControlRot);
 	}
 	else

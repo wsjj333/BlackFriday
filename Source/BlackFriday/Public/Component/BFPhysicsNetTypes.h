@@ -37,21 +37,21 @@ struct FBFPhysicsState
 inline int16 BF_PackAxis(float Axis)
 {
 	const float Clamped = FMath::Clamp(Axis, -1.f, 1.f);
-	return static_cast<int16>(FMath::RoundToInt(Clamped * 32767.f));
+	return (int16)FMath::RoundToInt(Clamped * 32767.f);
 }
 
 inline float BF_UnpackAxis(int16 Packed)
 {
-	return FMath::Clamp(Packed / 32767.f, -1.f, 1.f);
+	return FMath::Clamp((float)Packed / 32767.f, -1.f, 1.f);
 }
 
 inline int16 BF_PackYaw100(float YawDegrees)
 {
 	float Norm = FRotator::NormalizeAxis(YawDegrees);
-	return static_cast<int16>(FMath::RoundToInt(Norm * 100.f));
+	return (int16)FMath::RoundToInt(Norm * 100.f);
 }
 
 inline float BF_UnpackYaw100(int16 PackedYaw100)
 {
-	return PackedYaw100 / 100.f;
+	return (float)PackedYaw100 / 100.f;
 }
