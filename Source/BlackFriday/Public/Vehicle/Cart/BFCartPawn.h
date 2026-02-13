@@ -177,7 +177,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly)
 	TObjectPtr<UBoxComponent> Root;
 
-	UPROPERTY(EditDefaultsOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> CartBody;
 
 	UPROPERTY(EditDefaultsOnly)
@@ -222,9 +222,9 @@ protected:
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<USceneComponent> PusherStandAnker;
 	
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<USceneComponent> HandleL;
 	
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<USceneComponent> HandleR;
 };
