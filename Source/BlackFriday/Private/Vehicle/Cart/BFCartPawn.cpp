@@ -3,6 +3,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Character/Common/BFTeamComponent.h"
 #include "Engine/Engine.h"
 
 ABFCartPawn::ABFCartPawn()
@@ -24,6 +25,8 @@ ABFCartPawn::ABFCartPawn()
 
 	// 소유 클라에서 물리 복제 스무딩이 필요하면(UE 버전에 따라 효과 차이 있음)
 	// Root->bReplicatePhysicsToAutonomousProxy = true; // UPrimitiveComponent 멤버(버전에 따라 접근 가능)
+	
+	TeamComp = CreateDefaultSubobject<UBFTeamComponent>(TEXT("TeamComp"));
 
 	CartBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CartBody"));
 	CartBody->SetupAttachment(Root);

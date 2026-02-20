@@ -4,6 +4,7 @@
 #include "Character/Common/BFPawnBase.h"
 #include "BFPusher.generated.h"
 
+class UBFTeamComponent;
 class UBFPusherInputComponent;
 class UBFPusherDriveComponent;
 class UBFCharacterAppearanceComponent;
@@ -64,6 +65,9 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Appearance", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UBFCharacterAppearanceComponent> AppearanceComp;
+	
+	UPROPERTY()
+	TObjectPtr<UBFTeamComponent> TeamComp;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UBFCharacterAnimInstance> CachedAnimInstance;
