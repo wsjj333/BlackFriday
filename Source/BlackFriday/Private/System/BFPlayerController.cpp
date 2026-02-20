@@ -116,6 +116,8 @@ void ABFPlayerController::SendLocalPlayerNameToServer()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[BFPlayerController] SendLocalPlayerNameToServer called!"));
 
+	if (!GetWorld() || !GetGameInstance())  return;
+	
 	if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
 	{
 		FString LocalName = GI->GetLocalPlayerName();
