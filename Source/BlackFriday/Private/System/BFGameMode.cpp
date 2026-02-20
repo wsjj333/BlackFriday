@@ -4,6 +4,7 @@
 #include "System/BFGameState.h"
 #include "System/BFGameInstance.h"
 #include "System/BFPlayerController.h"
+#include "System/BFCheckoutManager.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
@@ -407,6 +408,12 @@ void ABFGameMode::StartRound()
 		BFGameState->GetCurrentRound(), RoundPlayTimeSeconds);
 }
 
+void ABFGameMode::RegisterCheckoutManager(ABFCheckoutManager* Manager)
+{
+	CheckoutManager = Manager;
+	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] CheckoutManager registered"));
+}
+
 void ABFGameMode::EndRound(int32 WinningTeam)
 {
 	if (!BFGameState) return;
@@ -418,7 +425,13 @@ void ABFGameMode::EndRound(int32 WinningTeam)
 		GI->RecordRoundResult(BFGameState->GetCurrentRound(), WinningTeam);
 	}
 
-	// 2. 기존 타이머가 있다면 초기화 후 5초 뒤 다음 라운드 진행
+	// 2. 카운터 결제 처리 + 카운터 1개 비활성화
+	if (CheckoutManager)
+	{
+		CheckoutManager->ProcessCheckoutsAndDeactivate(BFGameState->GetCurrentRound());
+	}
+
+	// 3. 기존 타이머가 있다면 초기화 후 5초 뒤 다음 라운드 진행
 	GetWorld()->GetTimerManager().SetTimer(
 		RoundTransitionTimerHandle, 
 		this, 

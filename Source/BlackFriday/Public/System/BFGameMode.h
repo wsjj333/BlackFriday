@@ -8,6 +8,7 @@
 #include "BFGameMode.generated.h"
 
 class ABFGameState;
+class ABFCheckoutManager;
 
 // 델리게이트 - 게임 이벤트 콜백
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameStarted);
@@ -141,6 +142,12 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "BF|GameMode")
 	FOnAllPlayersReady OnAllPlayersReady;
 
+	// ===== 카운터 관련 =====
+
+	// CheckoutManager가 BeginPlay에서 자신을 등록
+	UFUNCTION(BlueprintCallable, Category = "BF|GameMode")
+	void RegisterCheckoutManager(ABFCheckoutManager* Manager);
+
 	// ===== Getter =====
 
 	UFUNCTION(BlueprintPure, Category = "BF|GameMode")
@@ -170,6 +177,10 @@ protected:
 	// GameState 캐시
 	UPROPERTY()
 	TObjectPtr<ABFGameState> BFGameState;
+
+	// CheckoutManager 캐시 (BeginPlay에서 RegisterCheckoutManager로 등록)
+	UPROPERTY()
+	TObjectPtr<ABFCheckoutManager> CheckoutManager;
 
 	// 접속한 플레이어 목록
 	UPROPERTY()
