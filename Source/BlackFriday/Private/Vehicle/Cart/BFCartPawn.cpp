@@ -22,9 +22,8 @@ ABFCartPawn::ABFCartPawn()
 
 	// 물리 시뮬을 쓰는 루트라면 컴포넌트도 복제 권장
 	Root->SetIsReplicated(true);
-
-	// 소유 클라에서 물리 복제 스무딩이 필요하면(UE 버전에 따라 효과 차이 있음)
-	// Root->bReplicatePhysicsToAutonomousProxy = true; // UPrimitiveComponent 멤버(버전에 따라 접근 가능)
+	
+	Root->bReplicatePhysicsToAutonomousProxy = true;
 	
 	TeamComp = CreateDefaultSubobject<UBFTeamComponent>(TEXT("TeamComp"));
 
@@ -277,42 +276,34 @@ void ABFCartPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// 원래대로 서버에서만 물리 틱을 돌립니다.
 	if (HasAuthority())
 	{
-		// “물리”는 서버에서만
 		ServerSimTick(DeltaSeconds);
 	}
 
 	Acceleration = Rep_Acceleration;
 	CurrentVelocity = Root->GetPhysicsLinearVelocity();
 
-	// “코스메틱”은 모든 곳에서 가능하나, 반드시 복제된 값 기반으로만
 	RotateMeshes(DeltaSeconds);
 }
 
 void ABFCartPawn::ServerSimTick(float DeltaSeconds)
 {
-	// 서스펜션/가속/조향 등 물리는 서버 권한
 	SuspensionCast(WheelFRComp);
 	SuspensionCast(WheelFLComp);
 	SuspensionCast(WheelBRComp);
 	SuspensionCast(WheelBLComp);
 
-	// 서버 입력축 -> 서버 스무딩 값 생성
 	const float TargetAccel = IsOnGround() ? Rep_AccelAxis : 0.0f;
 	Rep_AccelerationInput = FMath::FInterpTo(Rep_AccelerationInput, TargetAccel, DeltaSeconds, 0.5f);
 
-	// 조향도 서버에서 “최종 조향값” 산출
-	// 드리프트 로직이 비어있어서 현재는 단순 클램프만 유지
 	Rep_DriftSteer = FMath::Clamp(Rep_SteerAxis, -3.0f, 3.0f);
 
-	// 가속/힘 계산
 	AccelerateCart();
 	CalculateAcceleration(DeltaSeconds);
 
-	// 토크 적용(서버만)
 	const double TorqueZ = Rep_DriftSteer * SteeringTorque * Rep_AccelerationInput * Rep_SteeringMultiplier;
-	// UE_LOG(LogTemp, Warning, TEXT("Rep_DriftSteer: %f | Rep_SteeringMultiplier: %f | TorqueZ: %lf"), Rep_DriftSteer, Rep_SteeringMultiplier, TorqueZ);
 	Root->AddTorqueInRadians(FVector(0.f, 0.f, TorqueZ));
 }
 
@@ -330,6 +321,24 @@ void ABFCartPawn::SetAccelAxis_Server(float Axis)
 {
 	if (!HasAuthority()) return;
 	Rep_AccelAxis = FMath::Clamp(Axis, -1.f, 1.f);
+}
+
+void ABFCartPawn::SetAccelAxis_Local(float Axis)
+{
+	Rep_AccelAxis = FMath::Clamp(Axis, -1.f, 1.f);
+}
+
+void ABFCartPawn::SetSteerAxis_Local(float Axis)
+{
+	Rep_DriftRotation.Yaw = FMath::Sign(Axis) * 25.0f;
+	Rep_SteerAxis = Rep_SteeringMultiplier == 2.0f 
+	? Axis
+	: FMath::Max(Rep_DriftSteer, FMath::Abs(Axis)) * FMath::Sign(Rep_DriftRotation.Yaw);
+}
+
+void ABFCartPawn::SetDriving_Local(bool bDriving)
+{
+	bIsLocallyDriven = bDriving;
 }
 
 void ABFCartPawn::SetSteerAxis_Server(float Axis)

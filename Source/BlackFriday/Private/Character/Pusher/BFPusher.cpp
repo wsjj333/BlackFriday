@@ -118,7 +118,7 @@ void ABFPusher::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutL
 
 void ABFPusher::SetPhysicsEnabled(bool bEnabled) const
 {
-	bEnabled = true;
+	// bEnabled = true;
 	if (CapsuleComp)
 	{
 		CapsuleComp->SetSimulatePhysics(bEnabled);
