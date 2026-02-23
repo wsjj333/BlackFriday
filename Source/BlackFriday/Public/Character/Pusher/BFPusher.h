@@ -15,6 +15,9 @@ class UBFCartMovementComponent;
 class UBFCharacterAnimInstance;
 class ABFCartPawn;
 
+/**
+ * SetCart를 통해 같은 팀의 카트를 지정해줘야 카트를 밀 수 있습니다
+ */
 UCLASS()
 class BLACKFRIDAY_API ABFPusher : public ABFPawnBase
 {

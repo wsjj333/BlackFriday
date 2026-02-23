@@ -57,6 +57,10 @@ void ABFPusher::BeginPlay()
 	{
 		PusherInputComp->SetInputSink(TScriptInterface<IBFInputSink>(NetPhysicsComp));
 	}
+	
+#if !UE_BUILD_SHIPPING
+	TeamComp->SetTeamId(1);
+#endif
 
 	RefreshAnimInstanceCache();
 }

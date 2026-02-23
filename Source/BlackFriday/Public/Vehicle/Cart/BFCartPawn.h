@@ -15,6 +15,9 @@ class UStaticMeshComponent;
 class USceneComponent;
 class UBFTeamComponent;
 
+/**
+ * 게임모드가 CartPawn과 Pusher에 부착된 TeamComp를 이용해 팀을 지정해야 합니다
+ */
 UCLASS()
 class BLACKFRIDAY_API ABFCartPawn : public APawn
 {
