@@ -81,7 +81,7 @@ void UBFCartMovementComponent::Input_DriftEnded(const FInputActionValue& Value)
 	const float Angle = Value.Get<float>();
 	
 	// TODO: 매직넘버 수정(Rep_SteeringMultiplier 원래 값을 의도함)
-	Server_SetCartSteeringMultiplier(2.0f);
+	Server_SetCartSteeringMultiplier(40.0f);
 	bIsDrifting = false;
 }
 

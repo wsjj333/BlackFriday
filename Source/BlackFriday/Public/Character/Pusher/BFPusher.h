@@ -32,7 +32,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	ABFCartPawn* GetCart() const;
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION()
 	void SetCart(ABFCartPawn* NewCart) const;
 	
 	UFUNCTION(BlueprintCallable)
@@ -51,6 +51,9 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	// ----- Components -----
+	UPROPERTY(BlueprintReadWrite, Category="BF|Team")
+	TObjectPtr<UBFTeamComponent> TeamComp;
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Components")
 	TObjectPtr<UBFPhysicsMovementComponent> PhysicsMoveComp;
 
@@ -68,9 +71,6 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Appearance", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UBFCharacterAppearanceComponent> AppearanceComp;
-	
-	UPROPERTY()
-	TObjectPtr<UBFTeamComponent> TeamComp;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UBFCharacterAnimInstance> CachedAnimInstance;
