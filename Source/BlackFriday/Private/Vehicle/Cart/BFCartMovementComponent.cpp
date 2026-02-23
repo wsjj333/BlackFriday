@@ -41,6 +41,9 @@ void UBFCartMovementComponent::SetDriving(bool bInDriving)
 			{
 				Cart->SetAccelAxis_Local(0.f);
 				Cart->SetSteerAxis_Local(0.f);
+				
+				// 로컬 코스매틱도 같이 리셋
+				Cart->SetCosmeticAccelInput(0.f);
 			}
 		}
 	}
@@ -55,14 +58,24 @@ void UBFCartMovementComponent::Input_AccelTriggered(const FInputActionValue& Val
 	Server_SetCartAccelerationAxis(Axis);
 	
 	// 클라이언트 화면에서 즉각적으로 반응하도록 로컬에도 적용
-	if (Cart.IsValid()) Cart->SetAccelAxis_Local(Axis);
+	if (Cart.IsValid())
+	{
+		Cart->SetAccelAxis_Local(Axis);
+		Cart->SetCosmeticAccelInput(Axis);
+	}
 }
 
 void UBFCartMovementComponent::Input_AccelEnded(const FInputActionValue& Value)
 {
 	if (!CanSendInput()) return;
+	
 	Server_SetCartAccelerationAxis(0.f);
-	if (Cart.IsValid()) Cart->SetAccelAxis_Local(0.f);
+	
+	if (Cart.IsValid())
+	{
+		Cart->SetAccelAxis_Local(0.f);
+		Cart->SetCosmeticAccelInput(0.f);
+	}
 }
 
 void UBFCartMovementComponent::Input_SteerTriggered(const FInputActionValue& Value)
