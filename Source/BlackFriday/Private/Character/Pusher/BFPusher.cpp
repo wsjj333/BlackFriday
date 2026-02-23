@@ -4,6 +4,7 @@
 #include "Component/BFNetworkPhysicsComponent.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
 #include "Character/Common/BFCharacterAnimInstance.h"
+#include "Character/Common/BFTeamComponent.h"
 #include "Character/Pusher/Components/BFCharacterAppearanceComponent.h"
 #include "Character/Pusher/Components/BFPusherDriveComponent.h"
 #include "Character/Pusher/Components/BFPusherInputComponent.h"
@@ -28,6 +29,9 @@ ABFPusher::ABFPusher()
 	
 	// 외형 컴포넌트
 	AppearanceComp = CreateDefaultSubobject<UBFCharacterAppearanceComponent>(TEXT("AppearanceComp"));
+	
+	// 팀 컴포넌트
+	TeamComp = CreateDefaultSubobject<UBFTeamComponent>(TEXT("TeamComp"));
 }
 
 bool ABFPusher::IsDriving() const

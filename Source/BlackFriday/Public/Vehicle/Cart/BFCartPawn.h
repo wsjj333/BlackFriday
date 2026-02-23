@@ -13,6 +13,7 @@ class UInputMappingContext;
 class UBoxComponent;
 class UStaticMeshComponent;
 class USceneComponent;
+class UBFTeamComponent;
 
 UCLASS()
 class BLACKFRIDAY_API ABFCartPawn : public APawn
@@ -174,6 +175,9 @@ protected:
 	bool CanRequestReset() const;
 
 	// ----- Components -----
+	UPROPERTY()
+	TObjectPtr<UBFTeamComponent> TeamComp;
+	
 	UPROPERTY(EditDefaultsOnly)
 	TObjectPtr<UBoxComponent> Root;
 

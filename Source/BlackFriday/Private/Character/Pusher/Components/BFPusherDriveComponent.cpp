@@ -1,5 +1,6 @@
 #include "Character/Pusher/Components/BFPusherDriveComponent.h"
 
+#include "Character/Common/BFTeamComponent.h"
 #include "Character/Pusher/BFPusher.h"
 #include "Vehicle/Cart/BFCartPawn.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
@@ -161,6 +162,19 @@ void UBFPusherDriveComponent::ServerToggleDrivingMode_Implementation()
 {
 	ABFPusher* Pusher = GetPusher();
 	if (!Pusher) return;
+	
+	UBFTeamComponent* CartTeamComp = Cart->FindComponentByClass<UBFTeamComponent>();
+	UBFTeamComponent* PusherTeamComp = Pusher->FindComponentByClass<UBFTeamComponent>();
+	
+	if(CartTeamComp->GetTeamId() == 0)
+	{
+		CartTeamComp->SetTeamId(PusherTeamComp->GetTeamId());
+	}
+	
+	if (CartTeamComp->GetTeamId() != PusherTeamComp->GetTeamId())
+	{
+		return;
+	}
 
 	// 서버에서 실제 부착/해제
 	ApplyDrivingAttachment_Server(!bIsDriving);
