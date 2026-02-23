@@ -178,7 +178,8 @@ protected:
 	bool CanRequestReset() const;
 
 	// ----- Components -----
-	UPROPERTY()
+	
+	UPROPERTY(BlueprintREadWrite, Category="BF|Team")
 	TObjectPtr<UBFTeamComponent> TeamComp;
 	
 	UPROPERTY(EditDefaultsOnly)
