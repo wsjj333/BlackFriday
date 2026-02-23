@@ -47,6 +47,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 	FVector GetCurrentVelocity() const;
 	
+	// 클라이언트 로컬 예측용 입력 세터
+	void SetAccelAxis_Local(float Axis);
+	void SetSteerAxis_Local(float Axis);
+	void SetDriving_Local(bool bDriving);
+	
 	// 서버에서만 호출되는 입력축 세터(컴포넌트/서버 코드용)
 	void SetAccelAxis_Server(float Axis);
 	void SetSteerAxis_Server(float Axis);
@@ -57,6 +62,9 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+	
+	// 현재 이 클라이언트가 운전 중인지 여부 (로컬 전용 플래그)
+	bool bIsLocallyDriven = false;
 
 	// ----- Physics / Movement -----
 	void SuspensionCast(USceneComponent* WheelComp) const;
@@ -72,7 +80,7 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void Server_RequestUpright();
 
-	// 서버에서만 호출되는 물리 적용 루틴
+	// 물리 적용
 	void ServerSimTick(float DeltaSeconds);
 	void CalculateAcceleration(float DeltaSeconds);
 	void AccelerateCart() const;

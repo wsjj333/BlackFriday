@@ -96,6 +96,7 @@ void UBFPusherDriveComponent::ToggleDrivingMode()
 	// 서버에 토글 요청
 	if (Pusher->HasAuthority())
 	{
+		Cart->SetOwner(Pusher->GetController());
 		ServerToggleDrivingMode(); // 서버도 한 경로로 통일
 	}
 	else
@@ -177,7 +178,7 @@ void UBFPusherDriveComponent::ServerToggleDrivingMode_Implementation()
 	}
 
 	// 서버에서 실제 부착/해제
-	ApplyDrivingAttachment_Server(!bIsDriving);
+	ApplyDrivingAttachment(!bIsDriving);
 
 	// 서버 자신도 즉시 로컬 처리(서버도 플레이어일 수 있음)
 	HandleDrivingStateChanged(!bIsDriving);
@@ -214,10 +215,9 @@ void UBFPusherDriveComponent::OnRep_Cart()
 void UBFPusherDriveComponent::OnRep_IsDriving()
 {
 	HandleDrivingStateChanged(bIsDriving);
-
-	// 클라이언트는 부착을 서버가 복제해주는 방식으로 유지할 수도 있고,
-	// “정확히 붙어있게”를 클라에서도 보장하려면 여기서도 부착을 시도할 수 있음.
-	// 다만 네 구조는 서버에서만 Attach/Detach(ApplyDrivingAttachment_Server)라서 여기선 생략.
+	
+	// 서버가 변경한 탑승 상태를 클라이언트 화면에도 즉시 적용하여 덜덜거림 방지
+	ApplyDrivingAttachment(bIsDriving);
 }
 
 void UBFPusherDriveComponent::OnRep_OrientToMovement()
@@ -260,15 +260,10 @@ void UBFPusherDriveComponent::ApplyOrientToMovement(const bool bEnable)
 	Pusher->SetActorRotation(NewRot);
 }
 
-void UBFPusherDriveComponent::ApplyDrivingAttachment_Server(const bool bAttach)
+void UBFPusherDriveComponent::ApplyDrivingAttachment(const bool bAttach)
 {
 	ABFPusher* Pusher = GetPusher();
 	if (!Pusher) return;
-
-	if (!Pusher->HasAuthority())
-	{
-		return;
-	}
 
 	if (bAttach)
 	{

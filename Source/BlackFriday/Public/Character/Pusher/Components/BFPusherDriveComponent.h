@@ -89,7 +89,7 @@ private:
 	void ServerSetOrientToMovement(const bool bEnable);
 
 	// ---- Apply helpers ----
-	void ApplyDrivingAttachment_Server(const bool bAttach);
+	void ApplyDrivingAttachment(const bool bAttach);
 
 	/** 토글 후 파생 상태 적용(orient, cart movement driving flag 등) */
 	void HandleDrivingStateChanged(const bool bNowDriving);

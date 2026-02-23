@@ -23,13 +23,25 @@ void UBFCartMovementComponent::SetDriving(bool bInDriving)
 {
 	bDriving = bInDriving;
 
-	// 드라이빙을 끄는 순간 입력축을 0으로 리셋 (로컬/서버 정합성)
+	// 로컬 카트에도 드라이빙 상태 업데이트
+	if (Cart.IsValid())
+	{
+		Cart->SetDriving_Local(bDriving);
+	}
+
 	if (!bDriving)
 	{
 		if (CanSendInput())
 		{
 			Server_SetCartAccelerationAxis(0.f);
 			Server_SetCartSteeringAxis(0.f);
+
+			// 로컬 값 리셋
+			if (Cart.IsValid())
+			{
+				Cart->SetAccelAxis_Local(0.f);
+				Cart->SetSteerAxis_Local(0.f);
+			}
 		}
 	}
 	
@@ -41,12 +53,16 @@ void UBFCartMovementComponent::Input_AccelTriggered(const FInputActionValue& Val
 
 	const float Axis = Value.Get<float>();
 	Server_SetCartAccelerationAxis(Axis);
+	
+	// 클라이언트 화면에서 즉각적으로 반응하도록 로컬에도 적용
+	if (Cart.IsValid()) Cart->SetAccelAxis_Local(Axis);
 }
 
 void UBFCartMovementComponent::Input_AccelEnded(const FInputActionValue& Value)
 {
 	if (!CanSendInput()) return;
 	Server_SetCartAccelerationAxis(0.f);
+	if (Cart.IsValid()) Cart->SetAccelAxis_Local(0.f);
 }
 
 void UBFCartMovementComponent::Input_SteerTriggered(const FInputActionValue& Value)
@@ -55,12 +71,14 @@ void UBFCartMovementComponent::Input_SteerTriggered(const FInputActionValue& Val
 
 	const float Axis = Value.Get<float>();
 	Server_SetCartSteeringAxis(Axis);
+	if (Cart.IsValid()) Cart->SetSteerAxis_Local(Axis);
 }
 
 void UBFCartMovementComponent::Input_SteerEnded(const FInputActionValue& Value)
 {
 	if (!CanSendInput()) return;
 	Server_SetCartSteeringAxis(0.f);
+	if (Cart.IsValid()) Cart->SetSteerAxis_Local(0.f);
 }
 
 void UBFCartMovementComponent::Input_DriftStarted(const FInputActionValue& Value)
