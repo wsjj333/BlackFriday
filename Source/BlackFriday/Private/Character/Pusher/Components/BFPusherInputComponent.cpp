@@ -394,5 +394,25 @@ void UBFPusherInputComponent::OnRecoverCart()
 		return;
 	}
 	
+	if (OwnerPusher->HasAuthority())
+	{
+		Cart->RequestUpright();
+	}
+	else
+	{
+		ServerRequestCartUpright();
+	}
+}
+
+void UBFPusherInputComponent::ServerRequestCartUpright_Implementation()
+{
+	if (!OwnerPusher) return;
+
+	ABFCartPawn* Cart = OwnerPusher->GetCart();
+	if (!Cart) return;
+
+	if (OwnerPusher->IsDriving()) return;
+
 	Cart->RequestUpright();
 }
+ 

@@ -86,6 +86,9 @@ private:
 	
 	void OnRecoverCart();
 
+	UFUNCTION(Server, Reliable)
+	void ServerRequestCartUpright();
+
 	// 로컬만 MappingContext 추가(기존 BeginPlay 로직을 InputComp로 이동)
 	void AddMappingContextIfLocal();
 	
