@@ -23,10 +23,20 @@ public:
 	// Sets default values for this component's properties
 	UBFTeamComponent();
 	
+	UFUNCTION(BlueprintPure, Category="BF|Team")
 	uint8 GetTeamId() const;
-	
+
+	UFUNCTION(BlueprintCallable, Category="BF|Team")
 	void SetTeamId(const uint8 InTeamId);
 
 protected:
+	virtual void BeginPlay() override;
+
 	uint8 TeamId;
+
+private:
+	UFUNCTION()
+	void OnPlayerTeamChanged(int32 ChangedPlayerId, uint8 NewTeamId);
+
+	void TryInitFromGameState();
 };
