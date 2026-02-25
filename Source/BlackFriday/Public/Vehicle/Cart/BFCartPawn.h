@@ -201,6 +201,21 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly)
 	TObjectPtr<UBoxComponent> Root;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBoxComponent> BasketLeftWallCollision;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBoxComponent> BasketRightWallCollision;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBoxComponent> BasketFrontWallCollision;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBoxComponent> BasketBackWallCollision;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBoxComponent> BasketFloorCollision;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> CartBody;

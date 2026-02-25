@@ -17,8 +17,38 @@ ABFCartPawn::ABFCartPawn()
 
 	Root = CreateDefaultSubobject<UBoxComponent>(TEXT("Root"));
 	SetRootComponent(Root);
-	Root->SetCollisionProfileName(TEXT("Pawn"));
+	Root->SetCollisionProfileName(TEXT("Cart"));
 	Root->SetBoxExtent(FVector(48.0f, 30.0f, 50.0f));
+	
+	BasketLeftWallCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketLeftWallCollision"));
+	BasketLeftWallCollision->SetupAttachment(Root);
+	BasketLeftWallCollision->SetCollisionProfileName(TEXT("CartBody"));
+	BasketLeftWallCollision->SetRelativeLocation(FVector(9.0f, -20.0f, 12.0f));
+	BasketLeftWallCollision->SetBoxExtent(FVector(35.0f, 1.0f, 20.0f));
+	
+	BasketRightWallCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketRightWallCollision"));
+	BasketRightWallCollision->SetupAttachment(Root);
+	BasketRightWallCollision->SetCollisionProfileName(TEXT("CartBody"));
+	BasketRightWallCollision->SetRelativeLocation(FVector(9.0f, 20.0f, 12.0f));
+	BasketRightWallCollision->SetBoxExtent(FVector(35.0f, 1.0f, 20.0f));
+	
+	BasketFrontWallCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketFrontWallCollision"));
+	BasketFrontWallCollision->SetupAttachment(Root);
+	BasketFrontWallCollision->SetCollisionProfileName(TEXT("CartBody"));
+	BasketFrontWallCollision->SetRelativeLocation(FVector(42.0f, 0.0f, 12.0f));
+	BasketFrontWallCollision->SetBoxExtent(FVector(1.0f, 22.0f, 20.0f));
+	
+	BasketBackWallCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketBackWallCollision"));
+	BasketBackWallCollision->SetupAttachment(Root);
+	BasketBackWallCollision->SetCollisionProfileName(TEXT("CartBody"));
+	BasketBackWallCollision->SetRelativeLocation(FVector(-24.0f, 0.0f, 12.0f));
+	BasketBackWallCollision->SetBoxExtent(FVector(1.0f, 27.0f, 20.0f));
+	
+	BasketFloorCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketFloorCollision"));
+	BasketFloorCollision->SetupAttachment(Root);
+	BasketFloorCollision->SetCollisionProfileName(TEXT("CartBody"));
+	BasketFloorCollision->SetRelativeLocation(FVector(10.0f, 0.0f, -5.0f));
+	BasketFloorCollision->SetBoxExtent(FVector(35.0f, 20.0f, 5.0f));
 
 	// 물리 시뮬을 쓰는 루트라면 컴포넌트도 복제 권장
 	Root->SetIsReplicated(true);
@@ -120,12 +150,6 @@ void ABFCartPawn::RequestUpright()
 
 bool ABFCartPawn::IsFlipped() const
 {
-	// const FVector WorldUp = FVector::UpVector;
-	// const FVector CartUp = GetActorUpVector();
-	//
-	// const float Dot = FVector::DotProduct(CartUp, WorldUp);
-	// return Dot < FlipDotThreshold;
-	
 	const float Dot = FVector::DotProduct(GetActorUpVector(), FVector::UpVector);
 	return Dot < UprightDotThreshold;
 }
