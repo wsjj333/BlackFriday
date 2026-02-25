@@ -17,8 +17,38 @@ ABFCartPawn::ABFCartPawn()
 
 	Root = CreateDefaultSubobject<UBoxComponent>(TEXT("Root"));
 	SetRootComponent(Root);
-	Root->SetCollisionProfileName(TEXT("Pawn"));
+	Root->SetCollisionProfileName(TEXT("Cart"));
 	Root->SetBoxExtent(FVector(48.0f, 30.0f, 50.0f));
+	
+	BasketLeftWallCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketLeftWallCollision"));
+	BasketLeftWallCollision->SetupAttachment(Root);
+	BasketLeftWallCollision->SetCollisionProfileName(TEXT("CartBody"));
+	BasketLeftWallCollision->SetRelativeLocation(FVector(9.0f, -20.0f, 12.0f));
+	BasketLeftWallCollision->SetBoxExtent(FVector(35.0f, 1.0f, 20.0f));
+	
+	BasketRightWallCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketRightWallCollision"));
+	BasketRightWallCollision->SetupAttachment(Root);
+	BasketRightWallCollision->SetCollisionProfileName(TEXT("CartBody"));
+	BasketRightWallCollision->SetRelativeLocation(FVector(9.0f, 20.0f, 12.0f));
+	BasketRightWallCollision->SetBoxExtent(FVector(35.0f, 1.0f, 20.0f));
+	
+	BasketFrontWallCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketFrontWallCollision"));
+	BasketFrontWallCollision->SetupAttachment(Root);
+	BasketFrontWallCollision->SetCollisionProfileName(TEXT("CartBody"));
+	BasketFrontWallCollision->SetRelativeLocation(FVector(42.0f, 0.0f, 12.0f));
+	BasketFrontWallCollision->SetBoxExtent(FVector(1.0f, 22.0f, 20.0f));
+	
+	BasketBackWallCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketBackWallCollision"));
+	BasketBackWallCollision->SetupAttachment(Root);
+	BasketBackWallCollision->SetCollisionProfileName(TEXT("CartBody"));
+	BasketBackWallCollision->SetRelativeLocation(FVector(-24.0f, 0.0f, 12.0f));
+	BasketBackWallCollision->SetBoxExtent(FVector(1.0f, 27.0f, 20.0f));
+	
+	BasketFloorCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketFloorCollision"));
+	BasketFloorCollision->SetupAttachment(Root);
+	BasketFloorCollision->SetCollisionProfileName(TEXT("CartBody"));
+	BasketFloorCollision->SetRelativeLocation(FVector(10.0f, 0.0f, -5.0f));
+	BasketFloorCollision->SetBoxExtent(FVector(35.0f, 20.0f, 5.0f));
 
 	// 물리 시뮬을 쓰는 루트라면 컴포넌트도 복제 권장
 	Root->SetIsReplicated(true);
@@ -97,6 +127,11 @@ void ABFCartPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ABFCartPawn, Rep_SteeringMultiplier);
 }
 
+void ABFCartPawn::SetCosmeticAccelInput(float Axis)
+{
+	Cosmetic_AccelInput = FMath::Clamp(Axis, -1.f, 1.f);
+}
+
 void ABFCartPawn::RequestUpright()
 {
 	if (!CanRequestReset())
@@ -115,12 +150,6 @@ void ABFCartPawn::RequestUpright()
 
 bool ABFCartPawn::IsFlipped() const
 {
-	// const FVector WorldUp = FVector::UpVector;
-	// const FVector CartUp = GetActorUpVector();
-	//
-	// const float Dot = FVector::DotProduct(CartUp, WorldUp);
-	// return Dot < FlipDotThreshold;
-	
 	const float Dot = FVector::DotProduct(GetActorUpVector(), FVector::UpVector);
 	return Dot < UprightDotThreshold;
 }
@@ -265,6 +294,9 @@ FTransform ABFCartPawn::GetHandleRTransform() const
 void ABFCartPawn::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	// 시작할 때 초기 위치 저장
+	LastTickLocation = GetActorLocation();
 
 	if (HasAuthority())
 	{
@@ -283,7 +315,35 @@ void ABFCartPawn::Tick(float DeltaSeconds)
 	}
 
 	Acceleration = Rep_Acceleration;
-	CurrentVelocity = Root->GetPhysicsLinearVelocity();
+
+	FVector DeltaLoc = GetActorLocation() - LastTickLocation;
+	LastTickLocation = GetActorLocation();
+
+	if (DeltaLoc.SizeSquared() > 0.001f)
+	{
+		// 1. 서버 보정 패킷이 도착해서 실제로 이동한 프레임
+		// 프레임 드랍으로 인한 속도 폭증(스파이크)을 막기 위해 DeltaSeconds 하한선 설정
+		FVector InstantVelocity = DeltaLoc / FMath::Max(DeltaSeconds, 0.016f);
+		CurrentVelocity = FMath::VInterpTo(CurrentVelocity, InstantVelocity, DeltaSeconds, 10.0f);
+	}
+	else
+	{
+		// 2. 패킷이 오지 않아 위치가 그대로인 프레임 (네트워크 딜레이)
+		// 플레이어가 가속 중(Rep_AccelAxis)이거나 이미 서버 가속도(Rep_Acceleration)가 붙은 상태라면
+		if (FMath::Abs(Rep_AccelAxis) > 0.01f || FMath::Abs(Rep_Acceleration) > 10.0f)
+		{
+			// 애니메이션 걷기 조건(GroundSpeed > 3.0)이 풀리지 않도록 최소 코스메틱 속도(5.1) 강제 유지
+			if (CurrentVelocity.SizeSquared() < 25.0f)
+			{
+				CurrentVelocity = GetActorForwardVector() * 5.1f;
+			}
+		}
+		else
+		{
+			// 정말로 멈춰야 하는 상황이면 부드럽게 감속
+			CurrentVelocity = FMath::VInterpTo(CurrentVelocity, FVector::ZeroVector, DeltaSeconds, 15.0f);
+		}
+	}
 
 	RotateMeshes(DeltaSeconds);
 }
@@ -330,7 +390,8 @@ void ABFCartPawn::SetAccelAxis_Local(float Axis)
 
 void ABFCartPawn::SetSteerAxis_Local(float Axis)
 {
-	Rep_DriftRotation.Yaw = FMath::Sign(Axis) * 25.0f;
+	// TODO: 매직넘버 수정(25도 회전을 의도, 테스트를 위해 잠시 50도 사용)
+	Rep_DriftRotation.Yaw = FMath::Sign(Axis) * 50.0f;
 	Rep_SteerAxis = Rep_SteeringMultiplier == 2.0f 
 	? Axis
 	: FMath::Max(Rep_DriftSteer, FMath::Abs(Axis)) * FMath::Sign(Rep_DriftRotation.Yaw);
@@ -345,8 +406,8 @@ void ABFCartPawn::SetSteerAxis_Server(float Axis)
 {
 	if (!HasAuthority()) return;
 	
-	// TODO: 매직넘버 수정(25도 회전을 의도함)
-	Rep_DriftRotation.Yaw = FMath::Sign(Axis) * 25.0f;
+	// TODO: 매직넘버 수정(25도 회전을 의도, 테스트를 위해 잠시 50도 사용)
+	Rep_DriftRotation.Yaw = FMath::Sign(Axis) * 50.0f;
 	
 	Rep_SteerAxis = Rep_SteeringMultiplier == 2.0f 
 	? Axis

@@ -27,6 +27,9 @@ public:
 	ABFCartPawn();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// 애니메이션 즉각 반응(로컬 예측)을 위한 코스메틱 입력 세터 추가
+	void SetCosmeticAccelInput(float Axis);
 	
 	/** 로컬 입력에서 호출(클라는 Server RPC로 위임) */
 	UFUNCTION(BlueprintCallable, Category="Cart|Reset")
@@ -62,6 +65,12 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+	
+	// 로컬 애니메이션용 코스메틱 가속 축
+	float Cosmetic_AccelInput = 0.0f;
+	
+	// 애니메이션 속도 계산을 위해 이전 프레임 위치를 저장할 변수
+	FVector LastTickLocation = FVector::ZeroVector;
 	
 	// 현재 이 클라이언트가 운전 중인지 여부 (로컬 전용 플래그)
 	bool bIsLocallyDriven = false;
@@ -192,6 +201,21 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly)
 	TObjectPtr<UBoxComponent> Root;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBoxComponent> BasketLeftWallCollision;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBoxComponent> BasketRightWallCollision;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBoxComponent> BasketFrontWallCollision;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBoxComponent> BasketBackWallCollision;
+	
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBoxComponent> BasketFloorCollision;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> CartBody;
