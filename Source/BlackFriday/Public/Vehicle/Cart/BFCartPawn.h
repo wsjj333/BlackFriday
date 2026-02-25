@@ -97,13 +97,6 @@ protected:
 	// Cosmetic (클라에서 복제값 기반으로만)
 	void RotateMeshes(float DeltaSeconds);
 
-	// ----- RPCs -----
-	// UFUNCTION(Server, Reliable, WithValidation)
-	// void Server_SetAccelerationAxis(float Axis);
-	//
-	// UFUNCTION(Server, Reliable, WithValidation)
-	// void Server_SetSteeringAxis(float Axis);
-
 	// ----- Replicated State -----
 	// “플레이어가 누르고 있는” 입력축 (서버 권한)
 	UPROPERTY(Replicated)
@@ -124,21 +117,32 @@ protected:
 
 	UPROPERTY(Replicated)
 	FRotator Rep_DriftRotation = FRotator::ZeroRotator;
-	
-	UPROPERTY(Replicated, EditDefaultsOnly, Category="BF|Movement")
-	float Rep_SteeringMultiplier = 2.0f;
 
-	// ----- Tunables -----
+	// ===== 튜닝 가능한 카트 조작 관련 파라미터 =====
+	
+	/** 카트 이동 속도 계수(부스트 시 값을 높여줌) */
+	UPROPERTY(EditAnywhere, Category="BF|Movement")
 	float SpeedModifier = 1.0f;
 
+	/** 카트가 공중에 떴을 때 긴 시간 떠 있는 것을 방지하기 위해 아래로 눌러주는 힘 */
 	UPROPERTY(EditAnywhere, Category="BF|Movement")
 	float DownForce = -4900000.0f;
 
-	UPROPERTY(EditDefaultsOnly, Category="BF|Movement")
-	double SteeringTorque = 1500000.0f;
+	/** 회전 힘 */
+	UPROPERTY(EditAnywhere, Category="BF|Movement")
+	double SteeringTorque = 15000000.0f;
+	
+	/** 카트 최대 가속도 */
+	UPROPERTY(EditAnywhere, Category="BF|Movement")
+	float MaxAcceleration = 15000.0f;
 
-	// UPROPERTY(EditAnywhere, Category="BF|Movement")
-	// float SteeringMultiplier = 2.0f;
+	/** 카트 이동 속도 */
+	UPROPERTY(EditAnywhere, Category="BF|Movement")
+	float CartSpeed = 10000.0f;
+	
+	/** 드리프트 중일때 얼마나 더 큰 각도로 꺾을지 결정하는 계수 */
+	UPROPERTY(Replicated, EditAnywhere, Category="BF|Movement")
+	float Rep_SteeringMultiplier = 2.0f;
 
 	UPROPERTY(EditAnywhere, Category="BF|Cart")
 	float SuspensionForceMultiplier = 10000000.0f;
@@ -148,16 +152,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category="BF|Cart")
 	FVector GroundTraceEnd = FVector(0.0f, 0.0f, 150.0f);
-
-	UPROPERTY(EditDefaultsOnly, Category="BF|Movement")
-	float MaxAcceleration = 15000.0f;
-
-	UPROPERTY(EditAnywhere, Category="BF|Movement")
-	float CartSpeed = 10000.0f;
 	
 	FVector CurrentVelocity = FVector(0.0, 0.0, 0.0);
 	
-	// 클라이언트(AnimInstance/코스메틱)에서 사용할 가속도 캐시
+	/** 클라이언트(AnimInstance/코스메틱)에서 사용할 가속도 캐시 */
 	UPROPERTY(BlueprintReadOnly, Category="Cart|Anim", Transient)
 	float Acceleration = 0.0f;
 	
