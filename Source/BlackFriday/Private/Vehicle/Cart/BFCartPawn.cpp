@@ -390,8 +390,8 @@ void ABFCartPawn::SetAccelAxis_Local(float Axis)
 
 void ABFCartPawn::SetSteerAxis_Local(float Axis)
 {
-	// TODO: 매직넘버 수정(25도 회전을 의도, 테스트를 위해 잠시 50도 사용)
-	Rep_DriftRotation.Yaw = FMath::Sign(Axis) * 50.0f;
+	// TODO: 매직넘버 수정(25도 회전을 의도)
+	Rep_DriftRotation.Yaw = FMath::Sign(Axis) * 25.0f;
 	Rep_SteerAxis = Rep_SteeringMultiplier == 2.0f 
 	? Axis
 	: FMath::Max(Rep_DriftSteer, FMath::Abs(Axis)) * FMath::Sign(Rep_DriftRotation.Yaw);
@@ -406,8 +406,8 @@ void ABFCartPawn::SetSteerAxis_Server(float Axis)
 {
 	if (!HasAuthority()) return;
 	
-	// TODO: 매직넘버 수정(25도 회전을 의도, 테스트를 위해 잠시 50도 사용)
-	Rep_DriftRotation.Yaw = FMath::Sign(Axis) * 50.0f;
+	// TODO: 매직넘버 수정(25도 회전을 의도)
+	Rep_DriftRotation.Yaw = FMath::Sign(Axis) * 25.0f;
 	
 	Rep_SteerAxis = Rep_SteeringMultiplier == 2.0f 
 	? Axis
