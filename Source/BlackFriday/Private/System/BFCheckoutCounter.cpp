@@ -4,6 +4,7 @@
 #include "Character/Common/BFTeamComponent.h"
 #include "Component/Cart/BFCartInventoryComponent.h"
 #include "Components/BoxComponent.h"
+#include "Components/SceneComponent.h"
 #include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
 
@@ -12,10 +13,13 @@ ABFCheckoutCounter::ABFCheckoutCounter()
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 
+	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+	RootComponent = SceneRoot;
+
 	TriggerZone = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerZone"));
+	TriggerZone->SetupAttachment(RootComponent);
 	TriggerZone->SetCollisionProfileName(TEXT("OverlapAll"));
 	TriggerZone->SetGenerateOverlapEvents(true);
-	RootComponent = TriggerZone;
 
 	EntryBarrier = CreateDefaultSubobject<UBoxComponent>(TEXT("EntryBarrier"));
 	EntryBarrier->SetupAttachment(RootComponent);

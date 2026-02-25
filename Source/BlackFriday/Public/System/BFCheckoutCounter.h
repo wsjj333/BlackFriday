@@ -7,6 +7,7 @@
 #include "BFCheckoutCounter.generated.h"
 
 class UBoxComponent;
+class USceneComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCounterOccupied, ABFCheckoutCounter*, Counter, uint8, TeamId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCounterReleased, ABFCheckoutCounter*, Counter);
@@ -58,6 +59,9 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "BF|Counter")
+	TObjectPtr<USceneComponent> SceneRoot;
 
 	// 팀 진입 감지용 트리거 박스 (Overlap)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "BF|Counter")

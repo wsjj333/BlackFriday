@@ -24,10 +24,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BF|Component")
 	UStaticMeshComponent* ItemMesh;
 
+	// DT_ItemData의 Row 이름 - BP_Bottle, BP_Bread 등 각 BP에서 설정
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "BF|Item")
+	FName ItemRowName;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BF|Physics")
 	float MaxLinearVelocity;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BF|Physics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BF|Physics")	
 	float MaxAngularVelocity;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BF|Physics")
