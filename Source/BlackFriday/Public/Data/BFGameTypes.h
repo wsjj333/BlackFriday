@@ -80,6 +80,15 @@ struct FBFPlayerTeamInfo
 		: PlayerId(InPlayerId), PlayerName(InPlayerName), TeamId(InTeamId), Role(InRole), UniqueNetId(InUniqueNetId) {}
 };
 
+// 라운드 테마 (라운드별 아이템 카테고리)
+UENUM(BlueprintType)
+enum class EBFRoundTheme : uint8
+{
+	Food         UMETA(DisplayName = "식품"),
+	Electronics  UMETA(DisplayName = "가전"),
+	Fashion      UMETA(DisplayName = "패션")
+};
+
 // 팀별 결제 기록
 USTRUCT(BlueprintType)
 struct FBFTeamPaymentRecord

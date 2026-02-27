@@ -20,9 +20,13 @@ void UBFPusherDriveComponent::BeginPlay()
 	OwnerPusher = Cast<ABFPusher>(GetOwner());
 	ResolveCartMovementComponent();
 
-	// 서버는 소스로 갖고 즉시 반영하고 싶을 때 (선택)
-	// 여기서는 별도 처리 불필요. OnRep은 클라에서만 자동이고,
-	// 서버는 상태 바꿀 때 직접 HandleDrivingStateChanged/Apply...를 호출하도록 설계.
+	// 패키징 빌드에서 RepNotify가 BeginPlay보다 먼저 발화될 수 있음.
+	// 서버가 스폰과 SetCart를 같은 프레임에 처리하면 초기 번들에 Cart가 세팅된 채로 오기 때문.
+	// OnRep_Cart에서 CachedCartMovementComp가 null이라 SetCart가 누락된 경우를 여기서 보정.
+	if (Cart && CachedCartMovementComp)
+	{
+		CachedCartMovementComp->SetCart(Cart);
+	}
 }
 
 void UBFPusherDriveComponent::ResolveCartMovementComponent()
@@ -93,19 +97,14 @@ void UBFPusherDriveComponent::ToggleDrivingMode()
 		ApplyOrientToMovement(!bWillDrive);
 	}
 
-	// 서버에 토글 요청
+	// 서버에 토글 요청 (서버/클라 모두 같은 경로로 통일)
 	if (Pusher->HasAuthority())
 	{
-		Cart->SetOwner(Pusher->GetController());
-		ServerToggleDrivingMode(); // 서버도 한 경로로 통일
+		ServerToggleDrivingMode();
 	}
-	else
+	else if (Pusher->IsLocallyControlled())
 	{
-		// RPC는 “내가 소유한 Pusher(Autonomous)”에서만 가능
-		if (Pusher->IsLocallyControlled())
-		{
-			ServerToggleDrivingMode();
-		}
+		ServerToggleDrivingMode();
 	}
 }
 
@@ -127,7 +126,11 @@ void UBFPusherDriveComponent::SetCart(ABFCartPawn* NewCart)
 	{
 		return;
 	}
-	
+
+	// 서버 확정 전에 로컬에 미리 반영 (ToggleDrivingMode가 바로 이어서 호출될 때 Cart null 방지)
+	Cart = NewCart;
+	OnRep_Cart();
+
 	ServerSetCart(NewCart);
 }
 
@@ -163,7 +166,10 @@ void UBFPusherDriveComponent::ServerToggleDrivingMode_Implementation()
 {
 	ABFPusher* Pusher = GetPusher();
 	if (!Pusher) return;
-	
+
+	// 서버/클라이언트 모두 여기서 SetOwner (Net RPC 권한 설정)
+	Cart->SetOwner(Pusher->GetController());
+
 	UBFTeamComponent* CartTeamComp = Cart->FindComponentByClass<UBFTeamComponent>();
 	UBFTeamComponent* PusherTeamComp = Pusher->FindComponentByClass<UBFTeamComponent>();
 	

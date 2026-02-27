@@ -49,8 +49,50 @@ void UBFGameInstance::ResetGameData()
 	RoundResults.Empty();
 	TotalTeamScores.Empty();
 	TeamRoundWins.Empty();
+	TeamTotalPayments.Empty();
+	RemainingCounters = 4;
+	NextRound = 1;
 
 	UE_LOG(LogTemp, Log, TEXT("[BFGameInstance] Game data reset."));
+}
+
+void UBFGameInstance::AddTotalPayment(int32 TeamId, float Amount)
+{
+	float& Total = TeamTotalPayments.FindOrAdd(TeamId);
+	Total += Amount;
+	UE_LOG(LogTemp, Log, TEXT("[BFGameInstance] Team %d 누적 결제: %.0f원"), TeamId, Total);
+}
+
+float UBFGameInstance::GetTotalPayment(int32 TeamId) const
+{
+	const float* Total = TeamTotalPayments.Find(TeamId);
+	return Total ? *Total : 0.0f;
+}
+
+int32 UBFGameInstance::GetPaymentWinner() const
+{
+	int32 Winner = -1;
+	float MaxPayment = -1.0f;
+	for (const auto& Pair : TeamTotalPayments)
+	{
+		if (Pair.Value > MaxPayment)
+		{
+			MaxPayment = Pair.Value;
+			Winner = Pair.Key;
+		}
+	}
+	return Winner;
+}
+
+EBFRoundTheme UBFGameInstance::GetRoundTheme(int32 RoundNumber) const
+{
+	// RoundNumber는 1부터 시작
+	int32 Index = RoundNumber - 1;
+	if (RoundThemes.IsValidIndex(Index))
+	{
+		return RoundThemes[Index];
+	}
+	return EBFRoundTheme::Food;
 }
 
 int32 UBFGameInstance::GetOverallWinner() const

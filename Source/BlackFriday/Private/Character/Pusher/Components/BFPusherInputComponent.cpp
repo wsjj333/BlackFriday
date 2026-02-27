@@ -147,8 +147,8 @@ void UBFPusherInputComponent::BindInput(UInputComponent* PlayerInputComponent)
 
 	if (AccelerationAction)
 	{
-		EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Started, this,
-		                          &UBFPusherInputComponent::OnAccelTriggered);
+		EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Triggered, this,
+								  &UBFPusherInputComponent::OnAccelTriggered);
 		EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Completed, this,
 		                          &UBFPusherInputComponent::OnAccelEnded);
 		EnhancedInput->BindAction(AccelerationAction, ETriggerEvent::Canceled, this,

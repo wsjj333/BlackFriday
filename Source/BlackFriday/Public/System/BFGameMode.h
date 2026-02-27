@@ -197,6 +197,9 @@ protected:
 	UFUNCTION()
 	void HandleCountdownFinished();
 
+	// GameInstance 로비 데이터로 플레이어 정보 복원 (BeginPlay/PostLogin 공통)
+	void RestorePlayerFromGameInstance(APlayerController* PC);
+
 	// 게임 시작 대기 체크
 	bool bWaitingForPlayers = true;
 };

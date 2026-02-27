@@ -4,6 +4,7 @@
 #include "System/BFCheckoutCounter.h"
 #include "System/BFGameState.h"
 #include "System/BFGameMode.h"
+#include "System/BFGameInstance.h"
 
 ABFCheckoutManager::ABFCheckoutManager()
 {
@@ -16,6 +17,21 @@ void ABFCheckoutManager::BeginPlay()
 	Super::BeginPlay();
 
 	if (!HasAuthority()) return;
+
+	// GameInstance에서 남은 카운터 수 읽어서 초과분 비활성화
+	if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
+	{
+		int32 ActiveTarget = GI->GetRemainingCounters();
+		int32 Deactivated = 0;
+		for (int32 i = Counters.Num() - 1; i >= 0 && (Counters.Num() - Deactivated) > ActiveTarget; --i)
+		{
+			if (IsValid(Counters[i]) && Counters[i]->IsCounterActive())
+			{
+				Counters[i]->Deactivate();
+				Deactivated++;
+			}
+		}
+	}
 
 	// GameMode에 자신을 등록
 	if (ABFGameMode* GM = GetWorld()->GetAuthGameMode<ABFGameMode>())
@@ -41,9 +57,15 @@ void ABFCheckoutManager::ProcessCheckoutsAndDeactivate(int32 CurrentRound)
 
 		float Amount = Counter->ProcessCheckout();
 
-		if (GS && Amount > 0.0f)
+		if (Amount > 0.0f)
 		{
-			GS->AddTeamPayment(TeamId, Amount);
+			if (GS) GS->AddTeamPayment(TeamId, Amount);
+
+			// GameInstance에 누적 결제 저장 (레벨 재시작 후에도 유지)
+			if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
+			{
+				GI->AddTotalPayment((int32)TeamId, Amount);
+			}
 		}
 
 		// 라운드 전환을 위해 점유 초기화
@@ -59,14 +81,35 @@ void ABFCheckoutManager::ProcessCheckoutsAndDeactivate(int32 CurrentRound)
 			if (IsValid(Counters[i]) && Counters[i]->IsCounterActive())
 			{
 				Counters[i]->Deactivate();
+				int32 Remaining = GetActiveCounterCount();
 				UE_LOG(LogTemp, Log, TEXT("[BFCheckoutManager] Counter[%d] deactivated after Round %d (Active: %d)"),
-					i, CurrentRound, GetActiveCounterCount());
+					i, CurrentRound, Remaining);
+
+				// GameInstance에 남은 카운터 수 저장 (레벨 재시작 후 사용)
+				if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
+				{
+					GI->SetRemainingCounters(Remaining);
+				}
 				break;
 			}
 		}
 	}
 
 	OnAllCheckoutsProcessed.Broadcast(CurrentRound);
+}
+
+void ABFCheckoutManager::LogActiveCounters(int32 RoundNumber) const
+{
+	FString ActiveList;
+	for (const ABFCheckoutCounter* Counter : Counters)
+	{
+		if (IsValid(Counter) && Counter->IsCounterActive())
+		{
+			ActiveList += Counter->GetName() + TEXT(", ");
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("[BFCheckoutManager] Round %d start - Active counters (%d): [%s]"),
+		RoundNumber, GetActiveCounterCount(), *ActiveList);
 }
 
 int32 ABFCheckoutManager::GetActiveCounterCount() const

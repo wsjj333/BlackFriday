@@ -137,6 +137,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BF|GameState")
 	TArray<FBFTeamPaymentRecord> GetAllTeamPayments() const { return TeamPayments; }
 
+	// 이번 라운드 RoundPayment 기준 우승팀
+	uint8 GetRoundWinningTeam() const;
+
+	// 라운드 시작 시 RoundPayment 리셋
+	void ResetRoundPayments();
+
 	UFUNCTION(BlueprintPure, Category = "BF|GameState")
 	uint8 GetWinningTeam() const;
 

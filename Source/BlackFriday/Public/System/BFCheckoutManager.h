@@ -38,6 +38,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BF|CheckoutManager")
 	int32 GetActiveCounterCount() const;
 
+	// 라운드 시작 시 활성 카운터 목록 로그 출력
+	void LogActiveCounters(int32 RoundNumber) const;
+
 	UPROPERTY(BlueprintAssignable, Category = "BF|CheckoutManager")
 	FOnAllCheckoutsProcessed OnAllCheckoutsProcessed;
 

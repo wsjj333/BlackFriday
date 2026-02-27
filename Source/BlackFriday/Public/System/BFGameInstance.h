@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
 #include "BFGameState.h"
+#include "Data/BFGameTypes.h"
 #include "BFGameInstance.generated.h"
 
 // 라운드 결과 구조체
@@ -68,6 +69,38 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BF|Game")
 	int32 GetOverallWinner() const;
 
+	// ===== 누적 결제 금액 (레벨 재시작 후에도 유지) =====
+
+	UFUNCTION(BlueprintCallable, Category = "BF|Game")
+	void AddTotalPayment(int32 TeamId, float Amount);
+
+	UFUNCTION(BlueprintPure, Category = "BF|Game")
+	float GetTotalPayment(int32 TeamId) const;
+
+	UFUNCTION(BlueprintPure, Category = "BF|Game")
+	int32 GetPaymentWinner() const;
+
+	// ===== 라운드 테마 =====
+
+	UFUNCTION(BlueprintPure, Category = "BF|Game")
+	EBFRoundTheme GetRoundTheme(int32 RoundNumber) const;
+
+	// ===== 카운터 수 관리 (라운드 간 유지) =====
+
+	UFUNCTION(BlueprintPure, Category = "BF|Game")
+	int32 GetRemainingCounters() const { return RemainingCounters; }
+
+	UFUNCTION(BlueprintCallable, Category = "BF|Game")
+	void SetRemainingCounters(int32 Count) { RemainingCounters = Count; }
+
+	// ===== 라운드 번호 관리 (레벨 재시작 후 복원용) =====
+
+	UFUNCTION(BlueprintPure, Category = "BF|Game")
+	int32 GetNextRound() const { return NextRound; }
+
+	UFUNCTION(BlueprintCallable, Category = "BF|Game")
+	void SetNextRound(int32 Round) { NextRound = Round; }
+
 	// ===== 세션 생성 시 설정 (로비 진입 전) =====
 
 	// 세션 생성 시 팀 개수 설정 (로비에서 불러와서 사용)
@@ -117,6 +150,22 @@ protected:
 	// 팀별 라운드 승리 횟수
 	UPROPERTY()
 	TMap<int32, int32> TeamRoundWins;
+
+	// ===== 라운드 테마 배열 (기본: 식품 → 가전 → 패션) =====
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "BF|Game")
+	TArray<EBFRoundTheme> RoundThemes = { EBFRoundTheme::Food, EBFRoundTheme::Electronics, EBFRoundTheme::Fashion };
+
+	// 다음 라운드 시작 시 활성화할 카운터 수 (4→3→2)
+	UPROPERTY()
+	int32 RemainingCounters = 4;
+
+	// 레벨 재시작 후 복원할 라운드 번호
+	UPROPERTY()
+	int32 NextRound = 1;
+
+	// 팀별 누적 결제 금액 (레벨 재시작 후에도 유지)
+	UPROPERTY()
+	TMap<int32, float> TeamTotalPayments;
 
 	// ===== 로비 데이터 (레벨 이동 시 유지) =====
 

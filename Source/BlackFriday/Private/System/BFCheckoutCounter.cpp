@@ -50,6 +50,7 @@ void ABFCheckoutCounter::OnTriggerBeginOverlap(UPrimitiveComponent* OverlappedCo
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (!HasAuthority() || !OtherActor || !bIsActive) return;
+	if (OtherActor->IsA<ABFCheckoutCounter>()) return;
 
 	UBFTeamComponent* TC = OtherActor->FindComponentByClass<UBFTeamComponent>();
 
@@ -116,6 +117,7 @@ void ABFCheckoutCounter::OnTriggerEndOverlap(UPrimitiveComponent* OverlappedComp
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
 	if (!HasAuthority() || !OtherActor) return;
+	if (OtherActor->IsA<ABFCheckoutCounter>()) return;
 
 	// 레퍼런스 카운트 감소 - 0이 되어야 진짜 나간 것
 	int32* OverlapCount = ActorOverlapCount.Find(OtherActor);

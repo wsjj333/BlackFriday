@@ -37,6 +37,30 @@ float ABFGameState::GetTeamTotalPayment(uint8 TeamId) const
 	return 0.0f;
 }
 
+uint8 ABFGameState::GetRoundWinningTeam() const
+{
+	uint8 WinnerTeamId = 255;
+	float MaxPayment = -1.0f;
+
+	for (const FBFTeamPaymentRecord& Record : TeamPayments)
+	{
+		if (Record.RoundPayment > MaxPayment)
+		{
+			MaxPayment = Record.RoundPayment;
+			WinnerTeamId = Record.TeamId;
+		}
+	}
+	return WinnerTeamId;
+}
+
+void ABFGameState::ResetRoundPayments()
+{
+	for (FBFTeamPaymentRecord& Record : TeamPayments)
+	{
+		Record.RoundPayment = 0.0f;
+	}
+}
+
 uint8 ABFGameState::GetWinningTeam() const
 {
 	uint8 WinnerTeamId = 255;
