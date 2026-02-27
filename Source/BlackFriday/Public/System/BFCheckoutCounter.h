@@ -45,6 +45,10 @@ public:
 	float GetTeamCartTotalPrice(uint8 TeamId);
 	virtual float GetTeamCartTotalPrice_Implementation(uint8 TeamId);
 
+	// BP_CheckoutCounter에서 GetTeamCartTotalPrice 오버라이드 시 사용
+	UFUNCTION(BlueprintPure, Category = "BF|Counter")
+	TArray<AActor*> GetActorsInZone() const;
+
 	// 점유 팀 변경 시 (클라이언트 UI 갱신용)
 	UPROPERTY(BlueprintAssignable, Category = "BF|Counter")
 	FOnCounterOccupied OnCounterOccupied;
@@ -97,6 +101,9 @@ protected:
 	// TriggerZone 안에 있는 액터 목록 (서버 전용)
 	UPROPERTY()
 	TSet<TObjectPtr<AActor>> ActorsInZone;
+
+	// 멀티 컴포넌트 중복 Overlap 처리를 위한 레퍼런스 카운트 (서버 전용)
+	TMap<AActor*, int32> ActorOverlapCount;
 
 private:
 	// 점유 팀의 모든 액터가 Zone을 떠났는지 확인
