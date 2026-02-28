@@ -4,6 +4,7 @@
 #include "System/BFGameState.h"
 #include "System/BFGameInstance.h"
 #include "System/BFCheckoutManager.h"
+#include "System/BFPlayerController.h"
 #include "GameFramework/PlayerState.h"
 
 void ABFGameMode::NotifyPlayerReady(APlayerController* Player)
@@ -139,8 +140,31 @@ void ABFGameMode::HostStartGame()
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Host starting game - traveling to Mart level"));
-	GetWorld()->ServerTravel(TEXT("/Game/Colab/JJS/Map/Map?listen"));
+	// 모든 클라이언트에 로딩 화면 표시 요청
+	UE_LOG(LogTemp, Warning, TEXT("[BFGameMode] HostStartGame - ConnectedPlayers count: %d"), ConnectedPlayers.Num());
+	for (APlayerController* PC : ConnectedPlayers)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BFGameMode]   -> PC: %s, Class: %s, IsLocal: %s"),
+			*PC->GetName(), *PC->GetClass()->GetName(),
+			PC->IsLocalController() ? TEXT("true") : TEXT("false"));
+
+		if (ABFPlayerController* BFPC = Cast<ABFPlayerController>(PC))
+		{
+			BFPC->ClientShowLoadingScreen();
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[BFGameMode]   -> Cast to ABFPlayerController FAILED!"));
+		}
+	}
+
+	// RPC가 클라이언트에 도달할 시간 확보 후 레벨 이동
+	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Host starting game - traveling to Mart level in 0.5s"));
+	FTimerHandle TravelTimer;
+	GetWorld()->GetTimerManager().SetTimer(TravelTimer, [this]()
+	{
+		GetWorld()->ServerTravel(TEXT("/Game/Colab/JJS/Map/Map?listen"));
+	}, 0.5f, false);
 }
 
 void ABFGameMode::StartGameCountdown()
@@ -150,6 +174,15 @@ void ABFGameMode::StartGameCountdown()
 	bWaitingForPlayers = false;
 	BFGameState->SetGamePhase(EBFGamePhase::Countdown);
 	BFGameState->StartCountdown(StartCountdownSeconds);
+
+	// 모든 클라이언트에 로딩 화면 제거 요청
+	for (APlayerController* PC : ConnectedPlayers)
+	{
+		if (ABFPlayerController* BFPC = Cast<ABFPlayerController>(PC))
+		{
+			BFPC->ClientHideLoadingScreen();
+		}
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Game countdown started: %d seconds"), StartCountdownSeconds);
 }

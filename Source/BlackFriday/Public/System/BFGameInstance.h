@@ -138,6 +138,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BF|Lobby")
 	void ClearLobbyData();
 
+	// ===== 로딩화면 플래그 (레벨 이동 후 BeginPlay에서 재표시용) =====
+
+	UPROPERTY()
+	bool bShouldShowLoadingScreen = false;
+
+	UFUNCTION(BlueprintCallable, Category = "BF|UI")
+	void SetShouldShowLoadingScreen(bool bShow) { bShouldShowLoadingScreen = bShow; }
+
+	UFUNCTION(BlueprintPure, Category = "BF|UI")
+	bool GetShouldShowLoadingScreen() const { return bShouldShowLoadingScreen; }
+
 protected:
 	// 라운드별 결과 저장
 	UPROPERTY()

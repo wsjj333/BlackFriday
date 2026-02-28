@@ -13,10 +13,19 @@ void ABFPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 로컬 플레이어만 이름 전송 (서버/클라이언트 모두)
 	if (IsLocalController())
 	{
-		// 약간의 딜레이 후 전송 (네트워크 준비 대기)
+		// 마트 레벨 로드 완료 후 로딩화면 재표시 (ServerTravel로 위젯이 날아가므로)
+		// bShouldShowLoadingScreen: ClientShowLoadingScreen RPC에서 설정됨 (서버/클라 모두 동작)
+		if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
+		{
+			if (GI->GetShouldShowLoadingScreen())
+			{
+				OnShowLoadingScreen();
+			}
+		}
+
+		// 약간의 딜레이 후 이름 전송 (네트워크 준비 대기)
 		FTimerHandle TimerHandle;
 		GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
 		{
@@ -95,6 +104,29 @@ void ABFPlayerController::ServerCancelReady_Implementation()
 	{
 		UE_LOG(LogTemp, Error, TEXT("[BFPlayerController] GameMode is NULL!"));
 	}
+}
+
+void ABFPlayerController::ClientShowLoadingScreen_Implementation()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[BFPlayerController] ClientShowLoadingScreen_Implementation - HasAuthority=%s, IsLocal=%s, Class=%s"),
+		HasAuthority() ? TEXT("true") : TEXT("false"),
+		IsLocalController() ? TEXT("true") : TEXT("false"),
+		*GetClass()->GetName());
+
+	if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
+	{
+		GI->SetShouldShowLoadingScreen(true);
+	}
+	OnShowLoadingScreen();
+}
+
+void ABFPlayerController::ClientHideLoadingScreen_Implementation()
+{
+	if (UBFGameInstance* GI = GetGameInstance<UBFGameInstance>())
+	{
+		GI->SetShouldShowLoadingScreen(false);
+	}
+	OnHideLoadingScreen();
 }
 
 void ABFPlayerController::ServerHostStartGame_Implementation()

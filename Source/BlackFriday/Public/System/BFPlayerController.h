@@ -43,6 +43,24 @@ public:
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "BF|Player")
 	void ServerHostStartGame();
 
+	// ===== 서버 → 클라이언트 RPC =====
+
+	// 로딩 화면 표시 (서버에서 레벨 이동 직전 호출)
+	UFUNCTION(Client, Reliable)
+	void ClientShowLoadingScreen();
+
+	// BP에서 구현: 실제 로딩 화면 표시 로직
+	UFUNCTION(BlueprintImplementableEvent, Category = "BF|Player")
+	void OnShowLoadingScreen();
+
+	// 로딩 화면 숨기기 (서버에서 모든 플레이어 로딩 완료 시 호출)
+	UFUNCTION(Client, Reliable)
+	void ClientHideLoadingScreen();
+
+	// BP에서 구현: 실제 로딩 화면 제거 로직
+	UFUNCTION(BlueprintImplementableEvent, Category = "BF|Player")
+	void OnHideLoadingScreen();
+
 	// ===== 클라이언트에서 GameInstance 이름 자동 전송 =====
 
 	// 로비 입장 시 GameInstance에 저장된 이름을 서버로 전송
