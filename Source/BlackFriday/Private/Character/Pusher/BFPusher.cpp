@@ -68,6 +68,13 @@ void ABFPusher::BeginPlay()
 	}
 
 	RefreshAnimInstanceCache();
+	
+	// 카메라 가림 방지(실루엣)용 Custom Depth 활성화
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetRenderCustomDepth(true);
+		MeshComp->SetCustomDepthStencilValue(1); // 스텐실로 특정 색상을 지정할 때 사용
+	}
 }
 
 void ABFPusher::RefreshAnimInstanceCache()

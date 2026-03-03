@@ -305,6 +305,19 @@ void ABFCartPawn::BeginPlay()
 	{
 		SetReplicateMovement(true);
 	}
+	
+	// 시각적으로 보이는 모든 메쉬(카트 몸체, 바퀴 등)에 Custom Depth 켜기
+	TArray<UStaticMeshComponent*> AllMeshes;
+	GetComponents<UStaticMeshComponent>(AllMeshes);
+	
+	for (UStaticMeshComponent* Mesh : AllMeshes)
+	{
+		if (Mesh)
+		{
+			Mesh->SetRenderCustomDepth(true);
+			// Mesh->SetCustomDepthStencilValue(1); // 스텐실 값이 필요하다면 주석 해제
+		}
+	}
 }
 
 void ABFCartPawn::Tick(float DeltaSeconds)
