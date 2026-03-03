@@ -357,7 +357,19 @@ void ABFCartPawn::ServerSimTick(float DeltaSeconds)
 	SuspensionCast(WheelFLComp);
 	SuspensionCast(WheelBRComp);
 	SuspensionCast(WheelBLComp);
+	
+	// 넘어질 때 복원 로직
+	const FVector CurrentUp = Root->GetUpVector();
+	const FVector WorldUp = FVector::UpVector; // 경사로에서도 동작하려면 바닥의 Normal 벡터를 대신 사용
 
+	// 현재 위쪽 벡터와 월드 위쪽 벡터를 외적(CrossProduct)하면, 되돌아갈 회전 축과 힘의 크기 나옴
+	const FVector RestoringTorque = FVector::CrossProduct(CurrentUp, WorldUp);
+
+	// 카트가 많이 기울어질수록 RestoringTorque의 크기가 커져서 강하게 원상복구 시킴
+	// bAccelChange 플래그를 true로 주면 질량에 상관없이 일정한 가속도로 세워줌
+	Root->AddTorqueInRadians(RestoringTorque * UprightTorqueStrength, NAME_None, true);
+
+	// 가속 및 조향 로직
 	const float TargetAccel = IsOnGround() ? Rep_AccelAxis : 0.0f;
 	Rep_AccelerationInput = FMath::FInterpTo(Rep_AccelerationInput, TargetAccel, DeltaSeconds, 0.5f);
 
