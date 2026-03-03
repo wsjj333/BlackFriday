@@ -1,11 +1,11 @@
+#include "Component/Pusher/BFPusherInputComponent.h"
+
 // Enhanced Input
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 
 // For movement/look math
-#include "Component/Pusher/BFPusherInputComponent.h"
-
 #include "Character/Pusher/BFPusher.h"
 #include "Component/Pusher/BFPusherDriveComponent.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -14,7 +14,6 @@
 #include "Interfaces/BFInputSink.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
 #include "Vehicle/Cart/BFCartPawn.h"
-
 
 UBFPusherInputComponent::UBFPusherInputComponent()
 {

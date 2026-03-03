@@ -19,6 +19,9 @@ ABFCartPawn::ABFCartPawn()
 	SetRootComponent(Root);
 	Root->SetCollisionProfileName(TEXT("Cart"));
 	Root->SetBoxExtent(FVector(48.0f, 30.0f, 50.0f));
+	Root->BodyInstance.COMNudge = FVector(0.0f, 0.0f, -50.0f);
+	Root->SetAngularDamping(2.0f);
+	Root->SetLinearDamping(0.5f);
 	
 	BasketLeftWallCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketLeftWallCollision"));
 	BasketLeftWallCollision->SetupAttachment(Root);
