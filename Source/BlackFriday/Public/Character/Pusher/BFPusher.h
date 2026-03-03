@@ -4,6 +4,7 @@
 #include "Character/Common/BFPawnBase.h"
 #include "BFPusher.generated.h"
 
+class UBFCartOverlapDetectorComponent;
 class UBFTeamComponent;
 class UBFPusherInputComponent;
 class UBFPusherDriveComponent;
@@ -28,6 +29,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool IsDriving() const;
+	
+	UFUNCTION(BlueprintCallable)
+	bool IsOverlappingCart() const;
 
 	UFUNCTION(BlueprintCallable)
 	ABFCartPawn* GetCart() const;
@@ -71,6 +75,9 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Appearance", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UBFCharacterAppearanceComponent> AppearanceComp;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Overlap", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UBFCartOverlapDetectorComponent> CartOverlapComp;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UBFCharacterAnimInstance> CachedAnimInstance;

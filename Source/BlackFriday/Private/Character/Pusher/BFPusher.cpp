@@ -8,6 +8,7 @@
 #include "Character/Pusher/Components/BFCharacterAppearanceComponent.h"
 #include "Character/Pusher/Components/BFPusherDriveComponent.h"
 #include "Character/Pusher/Components/BFPusherInputComponent.h"
+#include "Component/Pusher/BFCartOverlapDetectorComponent.h"
 #include "Vehicle/Cart/BFCartPawn.h"
 
 ABFPusher::ABFPusher()
@@ -32,11 +33,19 @@ ABFPusher::ABFPusher()
 	
 	// 팀 컴포넌트
 	TeamComp = CreateDefaultSubobject<UBFTeamComponent>(TEXT("TeamComp"));
+	
+	// 카트 오버랩 처리 컴포넌트
+	CartOverlapComp = CreateDefaultSubobject<UBFCartOverlapDetectorComponent>(TEXT("CartOverlapComp"));
 }
 
 bool ABFPusher::IsDriving() const
 {
 	return PusherDriveComp ? PusherDriveComp->IsDriving() : false;
+}
+
+bool ABFPusher::IsOverlappingCart() const
+{
+	return CartOverlapComp ? CartOverlapComp->IsOverlappingCart() : false;
 }
 
 ABFCartPawn* ABFPusher::GetCart() const

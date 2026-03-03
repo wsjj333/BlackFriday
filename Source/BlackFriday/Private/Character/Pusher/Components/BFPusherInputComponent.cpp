@@ -296,6 +296,8 @@ void UBFPusherInputComponent::OnToggleDriveModePressed(const FInputActionValue& 
 {
 	const ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher) return;
+	
+	if (!Pusher->IsOverlappingCart()) return;
 
 	if (UBFPusherDriveComponent* Drive = Pusher->FindComponentByClass<UBFPusherDriveComponent>())
 	{
