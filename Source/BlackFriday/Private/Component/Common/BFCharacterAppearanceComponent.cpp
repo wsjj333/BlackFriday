@@ -1,4 +1,4 @@
-#include "Character/Pusher/Components/BFCharacterAppearanceComponent.h"
+#include "Component/Common/BFCharacterAppearanceComponent.h"
 
 #include "Character/Common/BFPawnBase.h"
 #include "Components/SkeletalMeshComponent.h"

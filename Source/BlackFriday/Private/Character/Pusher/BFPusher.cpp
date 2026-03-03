@@ -5,10 +5,10 @@
 #include "Vehicle/Cart/BFCartMovementComponent.h"
 #include "Character/Common/BFCharacterAnimInstance.h"
 #include "Character/Common/BFTeamComponent.h"
-#include "Character/Pusher/Components/BFCharacterAppearanceComponent.h"
-#include "Character/Pusher/Components/BFPusherDriveComponent.h"
-#include "Character/Pusher/Components/BFPusherInputComponent.h"
+#include "Component/Common/BFCharacterAppearanceComponent.h"
 #include "Component/Pusher/BFCartOverlapDetectorComponent.h"
+#include "Component/Pusher/BFPusherDriveComponent.h"
+#include "Component/Pusher/BFPusherInputComponent.h"
 #include "Vehicle/Cart/BFCartPawn.h"
 
 ABFPusher::ABFPusher()

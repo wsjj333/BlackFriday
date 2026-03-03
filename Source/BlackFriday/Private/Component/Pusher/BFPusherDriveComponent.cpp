@@ -1,4 +1,4 @@
-#include "Character/Pusher/Components/BFPusherDriveComponent.h"
+#include "Component/Pusher/BFPusherDriveComponent.h"
 
 #include "Character/Common/BFTeamComponent.h"
 #include "Character/Pusher/BFPusher.h"
