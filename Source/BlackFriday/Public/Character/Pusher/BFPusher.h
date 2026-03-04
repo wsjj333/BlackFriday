@@ -4,20 +4,20 @@
 #include "Character/Common/BFPawnBase.h"
 #include "BFPusher.generated.h"
 
-class UBFCartOverlapDetectorComponent;
-class UBFTeamComponent;
-class UBFPusherInputComponent;
-class UBFPusherDriveComponent;
-class UBFCharacterAppearanceComponent;
-class UCapsuleComponent;
-class UBFPhysicsMovementComponent;
-class UBFNetworkPhysicsComponent;
-class UBFCartMovementComponent;
-class UBFCharacterAnimInstance;
 class ABFCartPawn;
+class UBFCartMovementComponent;
+class UBFCartOverlapDetectorComponent;
+class UBFCharacterAnimInstance;
+class UBFCharacterAppearanceComponent;
+class UBFNetworkPhysicsComponent;
+class UBFPusherDriveComponent;
+class UBFPusherInputComponent;
+class UBFPhysicsMovementComponent;
+class UBFTeamComponent;
 
 /**
- * SetCart를 통해 같은 팀의 카트를 지정해줘야 카트를 밀 수 있습니다
+ * Pusher가 밀 대상 Cart를 참조합니다.
+ * - 같은 팀 Cart 지정
  */
 UCLASS()
 class BLACKFRIDAY_API ABFPusher : public ABFPawnBase
@@ -25,62 +25,66 @@ class BLACKFRIDAY_API ABFPusher : public ABFPawnBase
 	GENERATED_BODY()
 
 public:
+	// ----- Constructor -----
 	ABFPusher();
-
-	UFUNCTION(BlueprintCallable)
-	bool IsDriving() const;
 	
-	UFUNCTION(BlueprintCallable)
+	// ----- Gameplay API -----
+	UFUNCTION(BlueprintPure)
+	bool IsDriving() const;
+
+	UFUNCTION(BlueprintPure)
 	bool IsOverlappingCart() const;
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintPure)
 	ABFCartPawn* GetCart() const;
-
+	
 	UFUNCTION()
-	void SetCart(ABFCartPawn* NewCart) const;
+	void SetCart(ABFCartPawn* NewCart);
 	
-	UFUNCTION(BlueprintCallable)
 	UBFCartMovementComponent* GetCartDrivingComp() const { return CartDrivingComp; }
-	
-	UFUNCTION(BlueprintCallable)
 	UBFPusherInputComponent* GetPusherInputComp() const { return PusherInputComp; }
-	
-	void SetPhysicsEnabled(bool bEnabled) const;
+
+	void SetPhysicsEnabled(const bool bEnabled);
 	void AdjustActorLocationByZOffset();
 
 protected:
+	// ----- UE Lifecycle -----
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	// ----- Components -----
-	UPROPERTY(BlueprintReadWrite, Category="BF|Team")
-	TObjectPtr<UBFTeamComponent> TeamComp;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Components")
-	TObjectPtr<UBFPhysicsMovementComponent> PhysicsMoveComp;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Appearance")
+	TObjectPtr<UBFCharacterAppearanceComponent> AppearanceComp;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Components")
-	TObjectPtr<UBFNetworkPhysicsComponent> NetPhysicsComp;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Components")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Drive")
 	TObjectPtr<UBFCartMovementComponent> CartDrivingComp;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Input", meta=(AllowPrivateAccess="true"))
-	TObjectPtr<UBFPusherInputComponent> PusherInputComp;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Drive", meta=(AllowPrivateAccess="true"))
-	TObjectPtr<UBFPusherDriveComponent> PusherDriveComp;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Appearance", meta=(AllowPrivateAccess="true"))
-	TObjectPtr<UBFCharacterAppearanceComponent> AppearanceComp;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Overlap", meta=(AllowPrivateAccess="true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Overlap")
 	TObjectPtr<UBFCartOverlapDetectorComponent> CartOverlapComp;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Physics")
+	TObjectPtr<UBFNetworkPhysicsComponent> NetPhysicsComp;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Physics")
+	TObjectPtr<UBFPhysicsMovementComponent> PhysicsMoveComp;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Drive")
+	TObjectPtr<UBFPusherDriveComponent> PusherDriveComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BF|Input")
+	TObjectPtr<UBFPusherInputComponent> PusherInputComp;
+
+	UPROPERTY(BlueprintReadOnly, Category="BF|Team")
+	TObjectPtr<UBFTeamComponent> TeamComp;
+
+protected:
+	// ----- Internal Helpers -----
+	void RefreshAnimInstanceCache();
+
+private:
+	// ----- Runtime Cache -----
 	UPROPERTY(Transient)
 	TObjectPtr<UBFCharacterAnimInstance> CachedAnimInstance;
-
-	void RefreshAnimInstanceCache();
 };
