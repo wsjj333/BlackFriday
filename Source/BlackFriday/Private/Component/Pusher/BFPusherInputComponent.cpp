@@ -1,5 +1,4 @@
-// Cart movement component (네 코드 기준)
-#include "Character/Pusher/Components/BFPusherInputComponent.h"
+#include "Component/Pusher/BFPusherInputComponent.h"
 
 // Enhanced Input
 #include "EnhancedInputComponent.h"
@@ -8,14 +7,13 @@
 
 // For movement/look math
 #include "Character/Pusher/BFPusher.h"
+#include "Component/Pusher/BFPusherDriveComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "GameFramework/PlayerController.h"
 
-#include "Character/Pusher/Components/BFPusherDriveComponent.h"
 #include "Interfaces/BFInputSink.h"
 #include "Vehicle/Cart/BFCartMovementComponent.h"
 #include "Vehicle/Cart/BFCartPawn.h"
-
 
 UBFPusherInputComponent::UBFPusherInputComponent()
 {
@@ -296,6 +294,8 @@ void UBFPusherInputComponent::OnToggleDriveModePressed(const FInputActionValue& 
 {
 	const ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher) return;
+	
+	if (!Pusher->IsOverlappingCart()) return;
 
 	if (UBFPusherDriveComponent* Drive = Pusher->FindComponentByClass<UBFPusherDriveComponent>())
 	{

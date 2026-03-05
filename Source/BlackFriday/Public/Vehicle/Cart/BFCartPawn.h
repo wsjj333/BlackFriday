@@ -188,6 +188,9 @@ protected:
 	/** 바닥 노멀에 맞춰 세울지(경사면에서 자연스럽게) */
 	UPROPERTY(EditAnywhere, Category="Cart|Reset")
 	bool bAlignToGroundNormal = true;
+	
+	UPROPERTY(EditAnywhere, Category="BF|Cart")
+	float UprightTorqueStrength = 500.0f; // 넘어질 때의 복원력
 
 	/** 네트워크에서 요청자(주로 owner)만 요청 가능하게 제한 */
 	bool CanRequestReset() const;

@@ -1,13 +1,23 @@
 #include "Character/Pusher/BFPusher.h"
+
+
+// Engine
 #include "Components/CapsuleComponent.h"
-#include "Component/BFPhysicsMovementComponent.h"
-#include "Component/BFNetworkPhysicsComponent.h"
-#include "Vehicle/Cart/BFCartMovementComponent.h"
+
+// Character
 #include "Character/Common/BFCharacterAnimInstance.h"
 #include "Character/Common/BFTeamComponent.h"
-#include "Character/Pusher/Components/BFCharacterAppearanceComponent.h"
-#include "Character/Pusher/Components/BFPusherDriveComponent.h"
-#include "Character/Pusher/Components/BFPusherInputComponent.h"
+
+// Components
+#include "Component/BFNetworkPhysicsComponent.h"
+#include "Component/BFPhysicsMovementComponent.h"
+#include "Component/Common/BFCharacterAppearanceComponent.h"
+#include "Component/Pusher/BFCartOverlapDetectorComponent.h"
+#include "Component/Pusher/BFPusherDriveComponent.h"
+#include "Component/Pusher/BFPusherInputComponent.h"
+
+// Vehicle
+#include "Vehicle/Cart/BFCartMovementComponent.h"
 #include "Vehicle/Cart/BFCartPawn.h"
 
 ABFPusher::ABFPusher()
@@ -32,11 +42,19 @@ ABFPusher::ABFPusher()
 	
 	// 팀 컴포넌트
 	TeamComp = CreateDefaultSubobject<UBFTeamComponent>(TEXT("TeamComp"));
+	
+	// 카트 오버랩 처리 컴포넌트
+	CartOverlapComp = CreateDefaultSubobject<UBFCartOverlapDetectorComponent>(TEXT("CartOverlapComp"));
 }
 
 bool ABFPusher::IsDriving() const
 {
-	return PusherDriveComp ? PusherDriveComp->IsDriving() : false;
+	return PusherDriveComp && PusherDriveComp->IsDriving();
+}
+
+bool ABFPusher::IsOverlappingCart() const
+{
+	return CartOverlapComp && CartOverlapComp->IsOverlappingCart();
 }
 
 ABFCartPawn* ABFPusher::GetCart() const
@@ -44,9 +62,11 @@ ABFCartPawn* ABFPusher::GetCart() const
 	return PusherDriveComp ? PusherDriveComp->GetCart() : nullptr;
 }
 
-void ABFPusher::SetCart(ABFCartPawn* NewCart) const
+void ABFPusher::SetCart(ABFCartPawn* NewCart)
 {
-	if (PusherDriveComp) PusherDriveComp->SetCart(NewCart);
+	if (!PusherDriveComp) return;
+	
+	PusherDriveComp->SetCart(NewCart);
 }
 
 void ABFPusher::BeginPlay()
@@ -59,35 +79,43 @@ void ABFPusher::BeginPlay()
 	}
 
 	RefreshAnimInstanceCache();
+	
+	// 카메라 가림 방지(실루엣)용 Custom Depth 활성화
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetRenderCustomDepth(true);
+	}
 }
 
 void ABFPusher::RefreshAnimInstanceCache()
 {
-	if (const USkeletalMeshComponent* MeshComp = GetMesh())
-	{	
-		UAnimInstance* Current = MeshComp->GetAnimInstance();
-		if (CachedAnimInstance != Current)
-		{
-			CachedAnimInstance = Cast<UBFCharacterAnimInstance>(Current);
-		}
+	const USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp) return;
+	
+	UAnimInstance* CurrentAnimInstance = MeshComp->GetAnimInstance();
+	if (!CurrentAnimInstance) return;
+	
+	if (CachedAnimInstance != CurrentAnimInstance)
+	{
+		CachedAnimInstance = Cast<UBFCharacterAnimInstance>(CurrentAnimInstance);
 	}
 }
 
 void ABFPusher::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
-	if (!IsDriving() || !GetCart() || !CachedAnimInstance)
-	{
-		return;
-	}
 	
+	ABFCartPawn* Cart = GetCart();
 	const USkeletalMeshComponent* MeshComp = GetMesh();
+	
+	if (!IsDriving()) return;
+	if (!Cart) return;
+	if (!CachedAnimInstance) return;
 	if (!MeshComp) return;
 
 	// IK: 핸들 위치 계산
-	const FTransform HandleL_WS = GetCart()->GetHandleLTransform();
-	const FTransform HandleR_WS = GetCart()->GetHandleRTransform();
+	const FTransform HandleL_WS = Cart->GetHandleLTransform();
+	const FTransform HandleR_WS = Cart->GetHandleRTransform();
 
 	const FTransform HandleL_CS = HandleL_WS.GetRelativeTransform(MeshComp->GetComponentTransform());
 	const FTransform HandleR_CS = HandleR_WS.GetRelativeTransform(MeshComp->GetComponentTransform());
@@ -100,15 +128,10 @@ void ABFPusher::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	if (!IsLocallyControlled())
-	{
-		return;
-	}
-
-	if (PusherInputComp)
-	{
-		PusherInputComp->BindInput(PlayerInputComponent);
-	}
+	if (!IsLocallyControlled()) return;
+	if (!PusherInputComp) return;
+	
+	PusherInputComp->BindInput(PlayerInputComponent);
 }
 
 void ABFPusher::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -116,44 +139,41 @@ void ABFPusher::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutL
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 }
 
-void ABFPusher::SetPhysicsEnabled(bool bEnabled) const
+void ABFPusher::SetPhysicsEnabled(const bool bEnabled)
 {
-	// bEnabled = true;
-	if (CapsuleComp)
+	if (!CapsuleComp) return;
+	if (CapsuleComp->IsSimulatingPhysics() == bEnabled) return;
+	
+	if (bEnabled)
 	{
-		CapsuleComp->SetSimulatePhysics(bEnabled);
-		if (bEnabled)
+		CapsuleComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		CapsuleComp->SetSimulatePhysics(true);
+		
+		if (FBodyInstance* BodyInst = CapsuleComp->GetBodyInstance())
 		{
-			CapsuleComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-			if (CapsuleComp->GetBodyInstance())
-			{
-				CapsuleComp->GetBodyInstance()->WakeInstance();
-			}
-		}
-		else
-		{
-			CapsuleComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			BodyInst->WakeInstance();
 		}
 	}
-
-	// NetPhysicsComp가 매 틱마다 물리를 다시 활성화하는 것을 방지
-	if (NetPhysicsComp)
+	else
 	{
-		NetPhysicsComp->SetComponentTickEnabled(bEnabled);
+		CapsuleComp->SetSimulatePhysics(false);
+		CapsuleComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		
+		CapsuleComp->SetPhysicsLinearVelocity(FVector::ZeroVector);
+		CapsuleComp->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 	}
-
-	if (PhysicsMoveComp)
-	{
-		PhysicsMoveComp->SetComponentTickEnabled(bEnabled);
-	}
+	
+	if (NetPhysicsComp) NetPhysicsComp->SetComponentTickEnabled(bEnabled);
+	if (PhysicsMoveComp) PhysicsMoveComp->SetComponentTickEnabled(bEnabled);
 }
 
 void ABFPusher::AdjustActorLocationByZOffset()
 {
-	// 캡슐 중심 기준이므로 HalfHeight만큼 위로 오프셋
-	if (CapsuleComp)
-	{
-		const float HalfHeight = CapsuleComp->GetScaledCapsuleHalfHeight();
-		SetActorRelativeLocation(FVector(0.f, 0.f, HalfHeight - 10));
-	}
+	if (!CapsuleComp) return;
+	
+	constexpr float GroundOffset = 10.f;
+	
+	// 캡슐 바닥이 기준면에 위치하도록 Z 보정 (penetration 방지용 offset 포함) 
+	const float HalfHeight = CapsuleComp->GetScaledCapsuleHalfHeight();
+	SetActorRelativeLocation(FVector(0.f, 0.f, HalfHeight - GroundOffset));
 }
