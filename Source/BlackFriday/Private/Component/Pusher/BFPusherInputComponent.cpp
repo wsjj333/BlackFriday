@@ -104,13 +104,12 @@ void UBFPusherInputComponent::BindInput(UInputComponent* PlayerInputComponent)
 	UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
 	if (!EnhancedInput)
 	{
-		// 프로젝트 전제상 EnhancedInput 사용 중이니 여기서 assert 성격으로 처리
+		// 프로젝트 전제상 EnhancedInput 사용 중이니 여기서 assert로 처리
 		ensureMsgf(
 			false, TEXT("UBFPusherInputComponent::BindInput - PlayerInputComponent is not EnhancedInputComponent"));
 		return;
 	}
-
-	// --- 기존 ABFPusher 바인딩 그대로 ---
+	
 	if (MoveAction)
 	{
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this,
@@ -138,10 +137,6 @@ void UBFPusherInputComponent::BindInput(UInputComponent* PlayerInputComponent)
 		EnhancedInput->BindAction(DriveModeAction, ETriggerEvent::Started, this,
 		                          &UBFPusherInputComponent::OnToggleDriveModePressed);
 	}
-
-	// --- 카트 입력: 기존엔 CartDrivingComp.Get()에 직접 바인딩했지만
-	// 컴포넌트 분리 첫 단계에서는 InputComp가 라우팅해도 됨 ---
-	// (OwnerPusher->CartDrivingComp 접근이 private이면, ABFPusher에 GetCartDrivingComp() getter 하나 추가 추천)
 
 	if (AccelerationAction)
 	{
@@ -183,8 +178,6 @@ void UBFPusherInputComponent::SetInputSink(const TScriptInterface<IBFInputSink>&
 	InputSink = InInputSink;
 }
 
-// -------------------- Bound Functions --------------------
-
 void UBFPusherInputComponent::OnMoveInputTriggered(const FInputActionValue& Value)
 {
 	ABFPusher* Pusher = GetOwnerPusher();
@@ -193,7 +186,7 @@ void UBFPusherInputComponent::OnMoveInputTriggered(const FInputActionValue& Valu
 		return;
 	}
 	
-	// 기존 코드와 동일: 운전 중이면 캐릭터 이동 입력 무시
+	// 운전 중이면 캐릭터 이동 입력 무시
 	if (Pusher->IsDriving())
 	{
 		return;

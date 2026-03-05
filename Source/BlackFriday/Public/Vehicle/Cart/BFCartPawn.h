@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 // #include "InputActionValue.h"
 #include "GameFramework/Pawn.h"
-#include "Net/UnrealNetwork.h"
 #include "BFCartPawn.generated.h"
 
 class ABFPusher;
@@ -197,7 +196,7 @@ protected:
 
 	// ----- Components -----
 	
-	UPROPERTY(BlueprintREadWrite, Category="BF|Team")
+	UPROPERTY(BlueprintReadWrite, Category="BF|Team")
 	TObjectPtr<UBFTeamComponent> TeamComp;
 	
 	UPROPERTY(EditDefaultsOnly)

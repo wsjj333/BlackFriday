@@ -44,7 +44,7 @@ public:
 	UBFCartMovementComponent* GetCartDrivingComp() const { return CartDrivingComp; }
 	UBFPusherInputComponent* GetPusherInputComp() const { return PusherInputComp; }
 
-	void SetPhysicsEnabled(const bool bEnabled);
+	void SetPhysicsEnabled(bool bEnabled);
 	void AdjustActorLocationByZOffset();
 
 protected:

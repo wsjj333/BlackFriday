@@ -20,9 +20,9 @@ UBFCartOverlapDetectorComponent::UBFCartOverlapDetectorComponent()
 	OverlapSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	OverlapSphere->SetCollisionObjectType(ECC_WorldDynamic);
 	
-	OverlapSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
+	OverlapSphere->SetCollisionResponseToAllChannels(ECR_Overlap);
 	// ECC_GameTraceChannel1 = Cart
-	OverlapSphere->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Overlap);
+	// OverlapSphere->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Overlap);
 	
 	OverlapSphere->SetGenerateOverlapEvents(true);
 }
