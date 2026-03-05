@@ -31,7 +31,7 @@ protected:
 	float SphereRadius = 150.f;
 
 	/** 서버 확정 결과(복제) */
-	UPROPERTY(VisibleInstanceOnly, Category="BF|Overlap")
+	UPROPERTY(Replicated, VisibleInstanceOnly, Category="BF|Overlap")
 	bool bIsOverlappingCart = false;
 
 	/** 서버에서만 추적: 현재 겹치는 Cart들 */
