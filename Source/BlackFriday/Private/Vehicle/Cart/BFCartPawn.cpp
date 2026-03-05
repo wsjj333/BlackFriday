@@ -111,6 +111,13 @@ ABFCartPawn::ABFCartPawn()
 	PusherStandAnchor = CreateDefaultSubobject<USceneComponent>(TEXT("PusherStandAnchor"));
 	PusherStandAnchor->SetupAttachment(Pivot);
 	PusherStandAnchor->SetRelativeLocation(FVector(-97.5, 0.0, 73.33));
+	
+	CollisionProxyBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionProxyBox"));
+	CollisionProxyBox->SetupAttachment(Root);
+	CollisionProxyBox->SetRelativeLocation(FVector(-80.0, 0.0, 10.0));
+	CollisionProxyBox->SetBoxExtent(FVector(32.0, 32.0, 60.0));
+	CollisionProxyBox->SetCollisionProfileName(TEXT("BlockAll"));
+	CollisionProxyBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	HandleL = CreateDefaultSubobject<USceneComponent>(TEXT("HandleL"));
 	HandleL->SetupAttachment(CartBody);
@@ -131,6 +138,8 @@ void ABFCartPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ABFCartPawn, Rep_DriftSteer);
 	DOREPLIFETIME(ABFCartPawn, Rep_DriftRotation);
 	DOREPLIFETIME(ABFCartPawn, Rep_SteeringMultiplier);
+	
+	DOREPLIFETIME(ABFCartPawn, bProxyBoxCollisionEnabled);
 }
 
 void ABFCartPawn::SetCosmeticAccelInput(float Axis)
@@ -445,6 +454,38 @@ void ABFCartPawn::SetSteeringMultiplier_Server(const float Multiplier)
 {
 	if (!HasAuthority()) return;
 	Rep_SteeringMultiplier = Multiplier;
+}
+
+void ABFCartPawn::ToggleProxyBoxCollision(bool bEnable)
+{
+	if (HasAuthority())
+	{
+		bProxyBoxCollisionEnabled = bEnable;
+		OnRep_ToggleProxyBoxCollision(); // 서버에서도 적용
+	}
+	else
+	{
+		ToggleProxyBoxCollision_Server(bEnable);
+	}
+}
+
+void ABFCartPawn::ToggleProxyBoxCollision_Server_Implementation(bool bEnable)
+{
+	bProxyBoxCollisionEnabled = bEnable;
+
+	// 서버에서도 바로 적용
+	OnRep_ToggleProxyBoxCollision();
+}
+
+void ABFCartPawn::OnRep_ToggleProxyBoxCollision()
+{
+	if (!CollisionProxyBox) return;
+	
+	CollisionProxyBox->SetCollisionEnabled(
+		bProxyBoxCollisionEnabled ?
+		ECollisionEnabled::QueryAndPhysics :
+		ECollisionEnabled::NoCollision
+	);
 }
 
 void ABFCartPawn::SuspensionCast(USceneComponent* WheelComp) const

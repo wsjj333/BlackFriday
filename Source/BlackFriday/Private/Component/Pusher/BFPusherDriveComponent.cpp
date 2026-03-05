@@ -189,6 +189,7 @@ void UBFPusherDriveComponent::ServerToggleDrivingMode_Implementation()
 	HandleDrivingStateChanged(!bIsDriving);
 	
 	bIsDriving = !bIsDriving;
+	Cart->ToggleProxyBoxCollision(bIsDriving);
 }
 
 void UBFPusherDriveComponent::ServerSetCart_Implementation(ABFCartPawn* NewCart)
