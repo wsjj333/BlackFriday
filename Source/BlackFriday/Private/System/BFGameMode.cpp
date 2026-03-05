@@ -111,9 +111,6 @@ void ABFGameMode::PostLogin(APlayerController* NewPlayer)
 
 	ConnectedPlayers.AddUnique(NewPlayer);
 
-	if (bIsLobby)
-		ReadyPlayers.Add(NewPlayer);
-
 	RestorePlayerFromGameInstance(NewPlayer);
 
 	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Player logged in. Total: %d (bIsLobby=%s)"),
@@ -149,6 +146,7 @@ void ABFGameMode::Logout(AController* Exiting)
 	{
 		ConnectedPlayers.Remove(PC);
 		ReadyPlayers.Remove(PC);
+		if (BFGameState) BFGameState->SetReadyPlayerCount(ReadyPlayers.Num());
 
 		// 팀 정보도 제거
 		if (BFGameState && PC->PlayerState)

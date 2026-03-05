@@ -15,6 +15,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerTeamChanged, int32, Player
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTeamCountChanged, int32, NewTeamCount);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerRoleChanged, int32, PlayerId, EBFPlayerRole, NewRole);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTeamPaymentsChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnReadyPlayerCountChanged, int32, NewCount);
 
 UCLASS()
 class BLACKFRIDAY_API ABFGameState : public AGameStateBase
@@ -172,6 +173,17 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "BF|GameState")
 	FOnTeamPaymentsChanged OnTeamPaymentsChanged;
 
+	UPROPERTY(BlueprintAssignable, Category = "BF|GameState")
+	FOnReadyPlayerCountChanged OnReadyPlayerCountChanged;
+
+	// ===== 준비 플레이어 수 (서버 전용 쓰기, 클라이언트 읽기) =====
+
+	UFUNCTION(BlueprintCallable, Category = "BF|GameState")
+	void SetReadyPlayerCount(int32 Count);
+
+	UFUNCTION(BlueprintPure, Category = "BF|GameState")
+	int32 GetReadyPlayerCount() const { return ReadyPlayerCount; }
+
 protected:
 	// ===== Replicated 속성 =====
 
@@ -202,6 +214,9 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_TeamPayments, BlueprintReadOnly, Category = "BF|GameState")
 	TArray<FBFTeamPaymentRecord> TeamPayments;
 
+	UPROPERTY(ReplicatedUsing = OnRep_ReadyPlayerCount, BlueprintReadOnly, Category = "BF|GameState")
+	int32 ReadyPlayerCount = 0;
+
 	// ===== OnRep 함수 =====
 
 	UFUNCTION() void OnRep_CountdownTime();
@@ -210,6 +225,7 @@ protected:
 	UFUNCTION() void OnRep_PlayerTeamInfos();
 	UFUNCTION() void OnRep_TeamCount();
 	UFUNCTION() void OnRep_TeamPayments();
+	UFUNCTION() void OnRep_ReadyPlayerCount();
 
 private:
 	FTimerHandle CountdownTimerHandle;

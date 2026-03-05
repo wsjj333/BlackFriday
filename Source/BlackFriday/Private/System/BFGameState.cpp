@@ -24,6 +24,7 @@ void ABFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(ABFGameState, TeamCount);
 	DOREPLIFETIME(ABFGameState, TeamSettings);
 	DOREPLIFETIME(ABFGameState, TeamPayments);
+	DOREPLIFETIME(ABFGameState, ReadyPlayerCount);
 }
 
 void ABFGameState::StartCountdown(int32 Seconds)
@@ -94,4 +95,17 @@ void ABFGameState::OnRep_GamePhase()
 void ABFGameState::OnRep_CurrentRound()
 {
 	OnRoundChanged.Broadcast(CurrentRound);
+}
+
+void ABFGameState::SetReadyPlayerCount(int32 Count)
+{
+	if (!HasAuthority()) return;
+
+	ReadyPlayerCount = Count;
+	OnRep_ReadyPlayerCount();
+}
+
+void ABFGameState::OnRep_ReadyPlayerCount()
+{
+	OnReadyPlayerCountChanged.Broadcast(ReadyPlayerCount);
 }

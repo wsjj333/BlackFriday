@@ -13,6 +13,8 @@ void ABFGameMode::NotifyPlayerReady(APlayerController* Player)
 
 	ReadyPlayers.Add(Player);
 
+	if (BFGameState) BFGameState->SetReadyPlayerCount(ReadyPlayers.Num());
+
 	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Player ready. Ready: %d / Connected: %d"),
 		ReadyPlayers.Num(), ConnectedPlayers.Num());
 
@@ -32,6 +34,8 @@ void ABFGameMode::CancelPlayerReady(APlayerController* Player)
 	if (!Player) return;
 
 	ReadyPlayers.Remove(Player);
+
+	if (BFGameState) BFGameState->SetReadyPlayerCount(ReadyPlayers.Num());
 
 	UE_LOG(LogTemp, Log, TEXT("[BFGameMode] Player cancelled ready. Ready: %d / Connected: %d"),
 		ReadyPlayers.Num(), ConnectedPlayers.Num());
