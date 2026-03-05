@@ -4,7 +4,8 @@
 #include "Components/ActorComponent.h"
 #include "BFCartResetComponent.generated.h"
 
-class UPrimitiveComponent;
+class APlayerController;
+class UBoxComponent;
 
 UCLASS(ClassGroup=(BF), meta=(BlueprintSpawnableComponent))
 class BLACKFRIDAY_API UBFCartResetComponent : public UActorComponent
@@ -18,19 +19,19 @@ public:
 	void RequestUpright();
 
 protected:
-	virtual void BeginPlay() override;
-
+	UFUNCTION(Server, Reliable)
+	void Server_RequestUpright(APlayerController* RequestingPC);
+	
 private:
 	bool CanRequestReset() const;
 	bool IsUprightEnough() const;
+	
 	void DoUprightReset_ServerAuth();
 
-	UFUNCTION(Server, Reliable)
-	void Server_RequestUpright();
-
-	UPrimitiveComponent* GetRootPrim() const;
+	UBoxComponent* GetRootComp() const;
 
 private:
+	// ----- Reset Condition -----
 	UPROPERTY(EditAnywhere, Category="Cart|Reset")
 	float UprightDotThreshold = 0.85f;
 
@@ -38,19 +39,22 @@ private:
 	float MaxSpeedToAllowReset = 200.f;
 
 	UPROPERTY(EditAnywhere, Category="Cart|Reset")
-	float ExtraLift = 5.f;
-
+	float ResetCooldown = 1.0f;
+	
+	// ----- Trace -----
 	UPROPERTY(EditAnywhere, Category="Cart|Reset")
 	float TraceDownDistance = 5000.f;
 
 	UPROPERTY(EditAnywhere, Category="Cart|Reset")
 	float TraceUpDistance = 200.f;
-
+	
+	// ----- Placement -----
 	UPROPERTY(EditAnywhere, Category="Cart|Reset")
-	float ResetCooldown = 1.0f;
+	float ExtraLift = 5.f;
 
 	UPROPERTY(EditAnywhere, Category="Cart|Reset")
 	bool bAlignToGroundNormal = true;
 
+	// ----- Cooldown -----
 	double LastResetTimeSeconds = -1.0;
 };

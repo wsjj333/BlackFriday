@@ -4,8 +4,9 @@
 #include "Components/ActorComponent.h"
 #include "BFCartOverlapDetectorComponent.generated.h"
 
-class USphereComponent;
 class ABFCartPawn;
+class UPrimitiveComponent;
+class USphereComponent;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class BLACKFRIDAY_API UBFCartOverlapDetectorComponent : public UActorComponent
@@ -23,21 +24,8 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-
-	UPROPERTY(VisibleAnywhere, Category="BF|Overlap")
-	TObjectPtr<USphereComponent> OverlapSphere;
-
-	UPROPERTY(EditAnywhere, Category="Overlap")
-	float SphereRadius = 150.f;
-
-	/** 서버 확정 결과(복제) */
-	UPROPERTY(Replicated, VisibleInstanceOnly, Category="BF|Overlap")
-	bool bIsOverlappingCart = false;
-
-	/** 서버에서만 추적: 현재 겹치는 Cart들 */
-	UPROPERTY(Replicated, VisibleInstanceOnly, Category="BF|Overlap")
-	TArray<TObjectPtr<ABFCartPawn>> OverlappingCarts;
-
+	
+private:
 	UFUNCTION()
 	void HandleBeginOverlap(
 		UPrimitiveComponent* OverlappedComp,
@@ -55,8 +43,25 @@ protected:
 		UPrimitiveComponent* OtherComp,
 		int32 OtherBodyIndex
 	);
-
+	
 	void RecalculateOverlapState_ServerOnly();
-
+	
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	
+private:
+	// Config
+	UPROPERTY(EditAnywhere, Category="Overlap")
+	float SphereRadius = 150.f;
+	
+	// Runtime state
+	UPROPERTY(VisibleInstanceOnly, Category="BF|Overlap")
+	bool bIsOverlappingCart = false;
+	
+	// Internal component
+	UPROPERTY(Transient)
+	TObjectPtr<USphereComponent> OverlapSphere;
+	
+	// Server-only data 
+	UPROPERTY(Replicated, VisibleInstanceOnly, Category="BF|Overlap")
+	TArray<TObjectPtr<ABFCartPawn>> OverlappingCarts;
 };
