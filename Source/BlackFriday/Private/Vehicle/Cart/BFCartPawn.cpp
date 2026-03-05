@@ -110,6 +110,7 @@ ABFCartPawn::ABFCartPawn()
 
 	PusherStandAnchor = CreateDefaultSubobject<USceneComponent>(TEXT("PusherStandAnchor"));
 	PusherStandAnchor->SetupAttachment(Pivot);
+	PusherStandAnchor->SetRelativeLocation(FVector(-97.5, 0.0, 73.33));
 
 	HandleL = CreateDefaultSubobject<USceneComponent>(TEXT("HandleL"));
 	HandleL->SetupAttachment(CartBody);
