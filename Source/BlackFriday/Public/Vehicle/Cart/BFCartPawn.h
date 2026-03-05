@@ -35,7 +35,7 @@ public:
 	void RequestUpright();
 	
 	// ----- Getter/Setter -----
-	USceneComponent* GetPusherStandAnkerComponent() const;
+	USceneComponent* GetPusherStandAnchorComponent() const;
 	
 	UFUNCTION(BlueprintCallable)
 	FTransform GetHandleLTransform() const;
@@ -260,7 +260,7 @@ protected:
 	TObjectPtr<UStaticMeshComponent> CasterForkBLMesh;
 	
 	UPROPERTY(EditAnywhere)
-	TObjectPtr<USceneComponent> PusherStandAnker;
+	TObjectPtr<USceneComponent> PusherStandAnchor;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<USceneComponent> HandleL;

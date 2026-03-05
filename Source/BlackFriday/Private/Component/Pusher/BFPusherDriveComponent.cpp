@@ -71,7 +71,7 @@ void UBFPusherDriveComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 	if (!Cart) return;
 	if (!OwnerPusher) return;
 	
-	const float CartYaw = Cart->GetPusherStandAnkerComponent()->GetComponentRotation().Yaw;
+	const float CartYaw = Cart->GetPusherStandAnchorComponent()->GetComponentRotation().Yaw;
 
 	FRotator NewRot = OwnerPusher->GetActorRotation();
 	NewRot.Yaw = CartYaw;
@@ -268,10 +268,10 @@ void UBFPusherDriveComponent::ApplyDrivingAttachment(const bool bAttach)
 	{
 		if (!Cart) return;
 
-		USceneComponent* StandAnker = Cart->GetPusherStandAnkerComponent();
-		if (!StandAnker) return;
+		USceneComponent* StandAnchor = Cart->GetPusherStandAnchorComponent();
+		if (!StandAnchor) return;
 		
-		Pusher->SetActorRotation(StandAnker->GetComponentRotation());
+		Pusher->SetActorRotation(StandAnchor->GetComponentRotation());
 		
 		Pusher->SetPhysicsEnabled(false);
 
@@ -281,7 +281,7 @@ void UBFPusherDriveComponent::ApplyDrivingAttachment(const bool bAttach)
 			EAttachmentRule::KeepWorld,
 			true);
 		
-		Pusher->AttachToComponent(StandAnker, Rules);
+		Pusher->AttachToComponent(StandAnchor, Rules);
 	}
 	else
 	{
