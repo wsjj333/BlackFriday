@@ -6,7 +6,7 @@
 UBFCartMovementComponent::UBFCartMovementComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
-	SetIsReplicatedByDefault(true); // 컴포넌트 RPC 안정성(권장)
+	SetIsReplicatedByDefault(true);
 }
 
 bool UBFCartMovementComponent::IsDrifting() const
@@ -147,7 +147,7 @@ void UBFCartMovementComponent::Server_SetCartAccelerationAxis_Implementation(flo
 
 	Axis = FMath::Clamp(Axis, -1.f, 1.f);
 
-	// ✅ 서버 권한에서 직접 서버 상태에 적용
+	// 서버 권한에서 직접 서버 상태에 적용
 	Cart->SetAccelAxis_Server(Axis);
 }
 

@@ -1,11 +1,16 @@
 #include "Component/Pusher/BFPusherDriveComponent.h"
 
+// Engine
+#include "Components/SceneComponent.h"
+#include "Net/UnrealNetwork.h"
+
+// Character
 #include "Character/Common/BFTeamComponent.h"
 #include "Character/Pusher/BFPusher.h"
-#include "Vehicle/Cart/BFCartPawn.h"
+
+// Vehicle
 #include "Vehicle/Cart/BFCartMovementComponent.h"
-#include "Net/UnrealNetwork.h"
-#include "Components/SceneComponent.h"
+#include "Vehicle/Cart/BFCartPawn.h"
 
 UBFPusherDriveComponent::UBFPusherDriveComponent()
 {
@@ -62,23 +67,17 @@ void UBFPusherDriveComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	
-	if (!bIsDriving)
-	{
-		return;
-	}
+	if (!bIsDriving) return;
+	if (!Cart) return;
+	if (!OwnerPusher) return;
 	
-	if (Cart && OwnerPusher)
-	{
-		const float CartYaw = Cart->GetPusherStandAnkerComponent()->GetComponentRotation().Yaw;
+	const float CartYaw = Cart->GetPusherStandAnkerComponent()->GetComponentRotation().Yaw;
 
-		FRotator NewRot = OwnerPusher->GetActorRotation();
-		NewRot.Yaw = CartYaw;
+	FRotator NewRot = OwnerPusher->GetActorRotation();
+	NewRot.Yaw = CartYaw;
 
-		OwnerPusher->SetActorRotation(NewRot);
-	}
+	OwnerPusher->SetActorRotation(NewRot);
 }
-
-// -------------------- Public API --------------------
 
 void UBFPusherDriveComponent::ToggleDrivingMode()
 {
@@ -88,7 +87,6 @@ void UBFPusherDriveComponent::ToggleDrivingMode()
 	if (!Cart) return;
 
 	// “즉시 체감”이 필요하면 목표 상태를 먼저 로컬에 적용 가능
-	// 단, 최종 권한은 서버가 가진다.
 	const bool bWillDrive = !bIsDriving;
 
 	// 로컬 체감: AutonomousProxy면 즉시 반영(서버 확정은 OnRep로 수렴)
@@ -160,8 +158,6 @@ void UBFPusherDriveComponent::SetOrientToMovement(const bool bEnable)
 	}
 }
 
-// -------------------- RPCs --------------------
-
 void UBFPusherDriveComponent::ServerToggleDrivingMode_Implementation()
 {
 	ABFPusher* Pusher = GetPusher();
@@ -171,7 +167,10 @@ void UBFPusherDriveComponent::ServerToggleDrivingMode_Implementation()
 	Cart->SetOwner(Pusher->GetController());
 
 	UBFTeamComponent* CartTeamComp = Cart->FindComponentByClass<UBFTeamComponent>();
+	if (!CartTeamComp) return;
+	
 	UBFTeamComponent* PusherTeamComp = Pusher->FindComponentByClass<UBFTeamComponent>();
+	if (!PusherTeamComp) return;
 	
 	if(CartTeamComp->GetTeamId() == 0)
 	{
@@ -186,7 +185,7 @@ void UBFPusherDriveComponent::ServerToggleDrivingMode_Implementation()
 	// 서버에서 실제 부착/해제
 	ApplyDrivingAttachment(!bIsDriving);
 
-	// 서버 자신도 즉시 로컬 처리(서버도 플레이어일 수 있음)
+	// 서버 자신도 즉시 로컬 처리
 	HandleDrivingStateChanged(!bIsDriving);
 	
 	bIsDriving = !bIsDriving;
@@ -204,8 +203,6 @@ void UBFPusherDriveComponent::ServerSetOrientToMovement_Implementation(const boo
 	ApplyOrientToMovement(bEnable);
 }
 
-// -------------------- OnRep --------------------
-
 void UBFPusherDriveComponent::OnRep_Cart()
 {
 	ResolveCartMovementComponent();
@@ -214,8 +211,6 @@ void UBFPusherDriveComponent::OnRep_Cart()
 	{
 		CachedCartMovementComp->SetCart(Cart);
 	}
-
-	// UI/캐시 갱신 같은 로컬 처리도 여기서 하면 됨(필요 시)
 }
 
 void UBFPusherDriveComponent::OnRep_IsDriving()
@@ -231,8 +226,6 @@ void UBFPusherDriveComponent::OnRep_OrientToMovement()
 	ApplyOrientToMovement(bOrientToMovement);
 }
 
-// -------------------- Apply / State --------------------
-
 void UBFPusherDriveComponent::HandleDrivingStateChanged(const bool bNowDriving)
 {
 	// 카트 무브먼트 컴포넌트에 드라이빙 상태 전달
@@ -241,7 +234,7 @@ void UBFPusherDriveComponent::HandleDrivingStateChanged(const bool bNowDriving)
 		CachedCartMovementComp->SetDriving(bNowDriving);
 	}
 
-	// 드라이빙이면 OrientToMovement를 끄고, 아니면 켜는 정책(네 기존 코드 유지)
+	// 드라이빙이면 OrientToMovement를 끄고, 아니면 켜는 정책
 	const bool bEnableOrient = !bNowDriving;
 
 	// 서버/클라 모두 “체감”을 위해 즉시 적용
@@ -287,12 +280,8 @@ void UBFPusherDriveComponent::ApplyDrivingAttachment(const bool bAttach)
 			EAttachmentRule::SnapToTarget,
 			EAttachmentRule::KeepWorld,
 			true);
-
-		// Pusher->GetMesh()->SetWorldTransform(Pusher->GetActorTransform());
 		
 		Pusher->AttachToComponent(StandAnker, Rules);
-
-		// Pusher->AdjustActorLocationByZOffset();
 	}
 	else
 	{

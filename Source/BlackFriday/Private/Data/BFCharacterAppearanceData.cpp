@@ -2,9 +2,7 @@
 #include "Data/Enums/BFCharacterType.h"
 
 #if WITH_EDITOR
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/SoftObjectPath.h"
-#include "Editor.h"
 #endif
 
 static FString ConvertEnumToUnderscoreName(const FString& In)
@@ -95,8 +93,7 @@ void UBFCharacterAppearanceData::RebuildFromEnum()
 
 		FString EnumName =
 			Enum->GetNameStringByValue(Value);
-
-		// 🔥 핵심 부분
+		
 		FString Converted =
 			ConvertEnumToUnderscoreName(EnumName);
 
@@ -124,65 +121,4 @@ void UBFCharacterAppearanceData::RebuildFromEnum()
 	(void)MarkPackageDirty();
 #endif
 }
-// void UBFCharacterAppearanceData::RebuildFromFolder()
-// {
-// 	MeshMap.Reset();
-//
-// 	FAssetRegistryModule& AssetRegistryModule =
-// 		FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-//
-// 	FARFilter Filter;
-// 	Filter.bRecursivePaths = true;
-// 	Filter.PackagePaths.Add(ScanRootPath);
-//
-// 	// UE5에서는 ClassPaths 권장
-// 	Filter.ClassPaths.Add(USkeletalMesh::StaticClass()->GetClassPathName());
-//
-// 	TArray<FAssetData> Assets;
-// 	AssetRegistryModule.Get().GetAssets(Filter, Assets);
-//
-// 	const UEnum* Enum = StaticEnum<EBFCharacterType>();
-// 	if (!Enum)
-// 	{
-// 		return;
-// 	}
-//
-// 	for (const FAssetData& Asset : Assets)
-// 	{
-// 		// 에셋 이름 (예: Mesh_Alien)
-// 		FString AssetName = Asset.AssetName.ToString();
-//
-// 		// Prefix 제거 (Mesh_ -> Alien)
-// 		FString Token = AssetName;
-// 		if (!NamePrefixToStrip.IsEmpty() && Token.StartsWith(NamePrefixToStrip))
-// 		{
-// 			Token.RightChopInline(NamePrefixToStrip.Len());
-// 		}
-//
-// 		// Token을 Enum 이름으로 매칭 (Enum 항목이 Alien 이거나 AfroHairMan 등)
-// 		const int64 EnumValue = Enum->GetValueByNameString(Token);
-// 		if (EnumValue == INDEX_NONE)
-// 		{
-// 			// 매칭 실패한 건 로그로 남겨두는 게 좋음
-// 			UE_LOG(LogTemp, Warning, TEXT("[AppearanceScan] Enum match failed: %s (asset: %s)"),
-// 				*Token, *Asset.GetObjectPathString());
-// 			continue;
-// 		}
-//
-// 		const EBFCharacterType Type = static_cast<EBFCharacterType>(EnumValue);
-//
-// 		// Soft 참조로 저장 (패키징/리다이렉트에 안전)
-// 		const FSoftObjectPath SoftPath(Asset.GetObjectPathString());
-// 		MeshMap.Add(Type, TSoftObjectPtr<USkeletalMesh>(SoftPath));
-// 	}
-//
-// 	// 변경사항 저장 가능 상태로 표시
-// 	if (!MarkPackageDirty())
-// 	{
-// 		UE_LOG(LogTemp, Warning, TEXT("Failed to mark package dirty"));
-// 	}
-//
-// 	UE_LOG(LogTemp, Log, TEXT("[AppearanceScan] Rebuilt %d meshes from %s"),
-// 		MeshMap.Num(), *ScanRootPath.ToString());
-// }
 #endif

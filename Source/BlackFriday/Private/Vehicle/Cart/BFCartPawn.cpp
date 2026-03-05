@@ -5,6 +5,7 @@
 #include "DrawDebugHelpers.h"
 #include "Character/Common/BFTeamComponent.h"
 #include "Engine/Engine.h"
+#include "Net/UnrealNetwork.h"
 
 ABFCartPawn::ABFCartPawn()
 {
@@ -22,6 +23,7 @@ ABFCartPawn::ABFCartPawn()
 	Root->BodyInstance.COMNudge = FVector(0.0f, 0.0f, -50.0f);
 	Root->SetAngularDamping(2.0f);
 	Root->SetLinearDamping(0.5f);
+	Root->SetGenerateOverlapEvents(true);
 	
 	BasketLeftWallCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BasketLeftWallCollision"));
 	BasketLeftWallCollision->SetupAttachment(Root);
@@ -268,9 +270,6 @@ void ABFCartPawn::DoUprightReset_ServerAuth()
 
 void ABFCartPawn::Server_RequestUpright_Implementation()
 {
-	// 서버에서: 실제로 이 Pawn의 소유자가 요청했는지 한 번 더 확인(권장)
-	// - 컨트롤러 소유/플레이어 컨트롤 여부 등 프로젝트 규칙에 맞춰 강화 가능
-
 	DoUprightReset_ServerAuth();
 }
 
@@ -315,7 +314,6 @@ void ABFCartPawn::BeginPlay()
 		if (Mesh)
 		{
 			Mesh->SetRenderCustomDepth(true);
-			// Mesh->SetCustomDepthStencilValue(1); // 스텐실 값이 필요하다면 주석 해제
 		}
 	}
 }
@@ -517,7 +515,7 @@ void ABFCartPawn::RotateMeshes(float DeltaSeconds)
 	WheelBLMesh->AddLocalRotation(WheelRotator);
 	WheelBRMesh->AddLocalRotation(WheelRotator);
 
-	// 드리프트 회전(현재 로직은 비어있어서 Rep_DriftRotation은 기본값일 것)
+	// 드리프트 회전                                   
 	const FRotator NewPivotRotation = FMath::RInterpTo(Pivot->GetRelativeRotation(), Rep_DriftRotation, DeltaSeconds,
 	                                                   3.0f);
 	Pivot->SetRelativeRotation(NewPivotRotation);
