@@ -108,8 +108,8 @@ ABFCartPawn::ABFCartPawn()
 	CasterForkBLMesh->SetupAttachment(Pivot);
 	CasterForkBLMesh->SetRelativeLocation(FVector(-31.720029, -26.392992, 18.197203));
 
-	PusherStandAnker = CreateDefaultSubobject<USceneComponent>(TEXT("PusherStandAnker"));
-	PusherStandAnker->SetupAttachment(Pivot);
+	PusherStandAnchor = CreateDefaultSubobject<USceneComponent>(TEXT("PusherStandAnchor"));
+	PusherStandAnchor->SetupAttachment(Pivot);
 
 	HandleL = CreateDefaultSubobject<USceneComponent>(TEXT("HandleL"));
 	HandleL->SetupAttachment(CartBody);
@@ -278,9 +278,9 @@ bool ABFCartPawn::CanRequestReset() const
 	return IsLocallyControlled() || HasAuthority();
 }
 
-USceneComponent* ABFCartPawn::GetPusherStandAnkerComponent() const
+USceneComponent* ABFCartPawn::GetPusherStandAnchorComponent() const
 {
-	return PusherStandAnker;
+	return PusherStandAnchor;
 }
 
 FTransform ABFCartPawn::GetHandleLTransform() const
