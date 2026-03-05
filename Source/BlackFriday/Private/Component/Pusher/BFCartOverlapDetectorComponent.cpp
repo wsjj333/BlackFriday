@@ -117,7 +117,7 @@ void UBFCartOverlapDetectorComponent::RecalculateOverlapState_ServerOnly()
 		ABFPusher* Pusher = Cast<ABFPusher>(GetOwner());
 		if (!Pusher) return;
 		
-		if (Pusher->GetCart()) return;
+		if (Pusher->IsDriving()) return;
 		
 		if (OverlappingCarts.Num() != 1) return;
 		
