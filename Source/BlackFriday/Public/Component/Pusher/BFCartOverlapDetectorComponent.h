@@ -54,11 +54,11 @@ private:
 	float SphereRadius = 150.f;
 	
 	// Runtime state
-	UPROPERTY(VisibleInstanceOnly, Category="BF|Overlap")
+	UPROPERTY(Replicated, VisibleInstanceOnly, Category="BF|Overlap")
 	bool bIsOverlappingCart = false;
 	
 	// Internal component
-	UPROPERTY(Transient)
+	UPROPERTY(Transient)  
 	TObjectPtr<USphereComponent> OverlapSphere;
 	
 	// Server-only data 
