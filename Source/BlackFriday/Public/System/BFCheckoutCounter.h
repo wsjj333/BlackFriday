@@ -12,6 +12,7 @@ class USceneComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCounterOccupied, ABFCheckoutCounter*, Counter, uint8, TeamId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCounterReleased, ABFCheckoutCounter*, Counter);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCheckoutProcessed, uint8, TeamId, float, Amount);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCounterActiveChanged, bool, bNewIsActive);
 
 UCLASS()
 class BLACKFRIDAY_API ABFCheckoutCounter : public AActor
@@ -60,6 +61,10 @@ public:
 	// 결제 완료 시
 	UPROPERTY(BlueprintAssignable, Category = "BF|Counter")
 	FOnCheckoutProcessed OnCheckoutProcessed;
+
+	// 활성화 상태 변경 시 (BP에서 셔터 애니메이션 등에 바인딩)
+	UPROPERTY(BlueprintAssignable, Category = "BF|Counter")
+	FOnCounterActiveChanged OnCounterActiveChanged;
 
 protected:
 	virtual void BeginPlay() override;

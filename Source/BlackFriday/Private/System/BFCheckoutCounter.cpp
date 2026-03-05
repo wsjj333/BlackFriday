@@ -223,7 +223,9 @@ void ABFCheckoutCounter::Deactivate()
 
 	bIsActive = false;
 	TriggerZone->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	EntryBarrier->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// 비활성화 시 EntryBarrier로 물리 차단 (카트/캐릭터 진입 불가)
+	EntryBarrier->SetCollisionProfileName(TEXT("BlockAll"));
+	EntryBarrier->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	ActorsInZone.Empty();
 	ActorOverlapCount.Empty();
 	OccupyingTeamId = 255;
@@ -246,5 +248,5 @@ void ABFCheckoutCounter::OnRep_OccupyingTeamId()
 
 void ABFCheckoutCounter::OnRep_bIsActive()
 {
-	// BP에서 바인딩: 셔터 닫기 애니메이션, 비활성 표시 등
+	OnCounterActiveChanged.Broadcast(bIsActive);
 }
