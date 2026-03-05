@@ -249,7 +249,7 @@ void ABFPusherNet::ApplyDrivingAttachment_Server(bool bAttach)
 	{
 		if (!Cart) return;
 
-		USceneComponent* StandAnker = Cart->GetPusherStandAnkerComponent();
+		USceneComponent* StandAnker = Cart->GetPusherStandAnchorComponent();
 		if (!StandAnker) return;
 
 		// 물리 시뮬레이션 비활성화
