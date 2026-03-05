@@ -59,6 +59,8 @@ public:
 	void SetSteerAxis_Server(float Axis);
 	void SetSteeringMultiplier_Server(const float Multiplier);
 	
+	void ToggleProxyBoxCollision(bool bEnable);
+	
 	USceneComponent* GetPivotComp() const { return Pivot; }
 
 protected:
@@ -73,6 +75,9 @@ protected:
 	
 	// 현재 이 클라이언트가 운전 중인지 여부 (로컬 전용 플래그)
 	bool bIsLocallyDriven = false;
+	
+	UFUNCTION(Server, Reliable)
+	void ToggleProxyBoxCollision_Server(bool bEnable);
 
 	// ----- Physics / Movement -----
 	void SuspensionCast(USceneComponent* WheelComp) const;
@@ -87,6 +92,9 @@ protected:
 	/** 서버 RPC */
 	UFUNCTION(Server, Reliable)
 	void Server_RequestUpright();
+	
+	UFUNCTION()
+	void OnRep_ToggleProxyBoxCollision();
 
 	// 물리 적용
 	void ServerSimTick(float DeltaSeconds);
@@ -263,8 +271,15 @@ protected:
 	TObjectPtr<USceneComponent> PusherStandAnchor;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<UBoxComponent> CollisionProxyBox;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<USceneComponent> HandleL;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<USceneComponent> HandleR;
+	
+private:
+	UPROPERTY(ReplicatedUsing = OnRep_ToggleProxyBoxCollision)
+	bool bProxyBoxCollisionEnabled = true;
 };
