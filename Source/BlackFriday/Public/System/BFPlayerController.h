@@ -66,4 +66,18 @@ public:
 	// 로비 입장 시 GameInstance에 저장된 이름을 서버로 전송
 	UFUNCTION(BlueprintCallable, Category = "BF|Player")
 	void SendLocalPlayerNameToServer();
+
+	// ===== 결과 데이터 (ServerTravel 후에도 PC에 유지) =====
+
+	UFUNCTION(Client, Reliable)
+	void ClientReceiveResultData(int32 WinnerTeamId, const TArray<float>& InTeamPayments, const TArray<int32>& InRoundWinners);
+
+	UPROPERTY(BlueprintReadOnly, Category = "BF|Result")
+	int32 ResultWinnerTeamId = -1;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BF|Result")
+	TArray<float> ResultTeamPayments;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BF|Result")
+	TArray<int32> ResultRoundWinners;
 };

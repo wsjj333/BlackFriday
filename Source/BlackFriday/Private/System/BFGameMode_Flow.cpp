@@ -314,7 +314,33 @@ void ABFGameMode::AdvanceToNextRound()
 
 			UE_LOG(LogTemp, Log, TEXT("[BFGameMode] 최종 우승: Team %d"), Winner);
 			UE_LOG(LogTemp, Log, TEXT("[BFGameMode] ========================="));
+
+			// 클라이언트 PC에 결과 데이터 전송 (ServerTravel 후 PC는 유지되므로)
+			TArray<float> TeamPayments;
+			TArray<int32> RoundWinners;
+			for (int32 i = 0; i < 4; i++)
+			{
+				TeamPayments.Add(GI->GetTotalPayment(i));
+			}
+			for (const FBFRoundResult& Result : GI->GetAllRoundResults())
+			{
+				RoundWinners.Add(Result.WinningTeam);
+			}
+			for (APlayerController* PC : ConnectedPlayers)
+			{
+				if (ABFPlayerController* BFPC = Cast<ABFPlayerController>(PC))
+				{
+					BFPC->ClientReceiveResultData(Winner, TeamPayments, RoundWinners);
+				}
+			}
 		}
+
+		// RPC가 클라이언트에 도달할 시간 확보 후 레벨 이동
+		FTimerHandle ResultTravelTimer;
+		GetWorld()->GetTimerManager().SetTimer(ResultTravelTimer, [this]()
+		{
+			GetWorld()->ServerTravel(TEXT("/Game/Colab/JJS/Map/Maps_Result?listen"), false);
+		}, 0.5f, false);
 	}
 	else
 	{

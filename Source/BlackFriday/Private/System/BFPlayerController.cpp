@@ -144,6 +144,15 @@ void ABFPlayerController::ServerHostStartGame_Implementation()
 	}
 }
 
+void ABFPlayerController::ClientReceiveResultData_Implementation(int32 WinnerTeamId, const TArray<float>& InTeamPayments, const TArray<int32>& InRoundWinners)
+{
+	ResultWinnerTeamId = WinnerTeamId;
+	ResultTeamPayments = InTeamPayments;
+	ResultRoundWinners = InRoundWinners;
+
+	UE_LOG(LogTemp, Log, TEXT("[BFPlayerController] Result data received. Winner: Team %d"), WinnerTeamId);
+}
+
 void ABFPlayerController::SendLocalPlayerNameToServer()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[BFPlayerController] SendLocalPlayerNameToServer called!"));
