@@ -23,7 +23,9 @@ public:
 	void ForceRecheckOverlap_ServerOnly();
 
 protected:
+	// ----- UE Lifecycle -----
 	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 private:
 	UFUNCTION()
@@ -45,8 +47,6 @@ private:
 	);
 	
 	void RecalculateOverlapState_ServerOnly();
-	
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 private:
 	// Config
