@@ -1,17 +1,17 @@
 #include "Vehicle/Cart/BFCartMovementComponent.h"
+
+
+// Engine
 #include "GameFramework/Actor.h"
 #include "Components/PrimitiveComponent.h"
+
+// Vehicle
 #include "Vehicle/Cart/BFCartPawn.h"
 
 UBFCartMovementComponent::UBFCartMovementComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
-}
-
-bool UBFCartMovementComponent::IsDrifting() const
-{
-	return bIsDrifting;
 }
 
 void UBFCartMovementComponent::SetCart(ABFCartPawn* InCart)
@@ -21,30 +21,29 @@ void UBFCartMovementComponent::SetCart(ABFCartPawn* InCart)
 
 void UBFCartMovementComponent::SetDriving(bool bInDriving)
 {
-	bDriving = bInDriving;
+	bIsDriving = bInDriving;
 
 	// 로컬 카트에도 드라이빙 상태 업데이트
 	if (Cart.IsValid())
 	{
-		Cart->SetDriving_Local(bDriving);
+		Cart->SetDriving_Local(bIsDriving);
 	}
-
-	if (!bDriving)
+	
+	if (bIsDriving) return;
+	
+	if (CanSendInput())
 	{
-		if (CanSendInput())
-		{
-			Server_SetCartAccelerationAxis(0.f);
-			Server_SetCartSteeringAxis(0.f);
+		Server_SetCartAccelerationAxis(0.f);
+		Server_SetCartSteeringAxis(0.f);
 
-			// 로컬 값 리셋
-			if (Cart.IsValid())
-			{
-				Cart->SetAccelAxis_Local(0.f);
-				Cart->SetSteerAxis_Local(0.f);
-				
-				// 로컬 코스매틱도 같이 리셋
-				Cart->SetCosmeticAccelInput(0.f);
-			}
+		// 로컬 값 리셋
+		if (Cart.IsValid())
+		{
+			Cart->SetAccelAxis_Local(0.f);
+			Cart->SetSteerAxis_Local(0.f);
+			
+			// 로컬 코스매틱도 같이 리셋
+			Cart->SetCosmeticAccelInput(0.f);
 		}
 	}
 	
@@ -100,7 +99,6 @@ void UBFCartMovementComponent::Input_DriftStarted(const FInputActionValue& Value
 	
 	const float Angle = Value.Get<float>();
 	
-	// TODO: 매직넘버 수정(Rep_SteeringMultiplier 값의 2배를 의도함)
 	Server_SetCartSteeringMultiplier(4.0f);
 	bIsDrifting = true;
 }
@@ -111,8 +109,7 @@ void UBFCartMovementComponent::Input_DriftEnded(const FInputActionValue& Value)
 	
 	const float Angle = Value.Get<float>();
 	
-	// TODO: 매직넘버 수정(Rep_SteeringMultiplier 원래 값을 의도함)
-	Server_SetCartSteeringMultiplier(40.0f);
+	Server_SetCartSteeringMultiplier(2.0f);
 	bIsDrifting = false;
 }
 
@@ -128,7 +125,7 @@ bool UBFCartMovementComponent::CanSendInput() const
 	if (!OwnerPawn->IsLocallyControlled()) return false;
 
 	// 드라이빙 중 + 카트 유효
-	if (!bDriving) return false;
+	if (!bIsDriving) return false;
 	if (!Cart.IsValid()) return false;
 
 	return true;
