@@ -125,7 +125,7 @@ void UBFPusherDriveComponent::SetCart(ABFCartPawn* NewCart)
 	ServerSetCart(NewCart);
 }
 
-void UBFPusherDriveComponent::SetOrientToMovement(const bool bEnable)
+void UBFPusherDriveComponent::SetOrientToMovement(bool bEnable)
 {
 	const ABFPusher* Pusher = GetPusher();
 	if (!Pusher) return;
@@ -190,7 +190,7 @@ void UBFPusherDriveComponent::ServerSetCart_Implementation(ABFCartPawn* NewCart)
 	OnRep_Cart();
 }
 
-void UBFPusherDriveComponent::ServerSetOrientToMovement_Implementation(const bool bEnable)
+void UBFPusherDriveComponent::ServerSetOrientToMovement_Implementation(bool bEnable)
 {
 	bOrientToMovement = bEnable;
 	ApplyOrientToMovement(bEnable);
@@ -219,7 +219,7 @@ void UBFPusherDriveComponent::OnRep_OrientToMovement()
 	ApplyOrientToMovement(bOrientToMovement);
 }
 
-void UBFPusherDriveComponent::HandleDrivingStateChanged(const bool bNowDriving)
+void UBFPusherDriveComponent::HandleDrivingStateChanged(bool bNowDriving)
 {
 	// 카트 무브먼트 컴포넌트에 드라이빙 상태 전달
 	if (CachedCartMovementComp)
@@ -238,7 +238,7 @@ void UBFPusherDriveComponent::HandleDrivingStateChanged(const bool bNowDriving)
 	bOrientToMovement = bEnableOrient;
 }
 
-void UBFPusherDriveComponent::ApplyOrientToMovement(const bool bEnable)
+void UBFPusherDriveComponent::ApplyOrientToMovement(bool bEnable)
 {
 	ABFPusher* Pusher = GetPusher();
 	if (!Pusher) return;
@@ -252,7 +252,7 @@ void UBFPusherDriveComponent::ApplyOrientToMovement(const bool bEnable)
 	Pusher->SetActorRotation(NewRot);
 }
 
-void UBFPusherDriveComponent::ApplyDrivingAttachment(const bool bAttach)
+void UBFPusherDriveComponent::ApplyDrivingAttachment(bool bAttach)
 {
 	ABFPusher* Pusher = GetPusher();
 	if (!Pusher) return;
