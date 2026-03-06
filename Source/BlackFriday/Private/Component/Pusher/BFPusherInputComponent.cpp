@@ -31,13 +31,11 @@ void UBFPusherInputComponent::BeginPlay()
 
 ABFPusher* UBFPusherInputComponent::GetOwnerPusher()
 {
-	// 1) 캐시가 이미 있으면 그대로 사용
 	if (OwnerPusher)
 	{
 		return OwnerPusher.Get();
 	}
-
-	// 2) 캐시가 없으면 지금 오너에서 다시 캐시
+	
 	OwnerPusher = Cast<ABFPusher>(GetOwner());
 	return OwnerPusher.Get();
 }
@@ -57,54 +55,30 @@ void UBFPusherInputComponent::AddMappingContextIfLocal()
 	}
 
 	const ULocalPlayer* LocalPlayer = PC->GetLocalPlayer();
-	if (!LocalPlayer)
-	{
-		return;
-	}
+	if (!LocalPlayer) return;
 
 	UEnhancedInputLocalPlayerSubsystem* Subsystem =
 		LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-	if (!Subsystem)
-	{
-		return;
-	}
+	if (!Subsystem) return;
 
-	if (!PusherMappingContext)
-	{
-		return;
-	}
-
+	if (!PusherMappingContext) return;
 	Subsystem->AddMappingContext(PusherMappingContext, 0);
 }
 
 void UBFPusherInputComponent::BindInput(UInputComponent* PlayerInputComponent)
 {
 	const ABFPusher* Pusher = GetOwnerPusher();
-	if (!Pusher)
-	{
-		return;
-	}
+	if (!Pusher) return;
 
 	APlayerController* PC = Cast<APlayerController>(Pusher->GetController());
-	if (!PC)
-	{
-		return; // 아직 Possess 안 됨 → PawnClientRestart에서 다시 호출
-	}
+	if (!PC) return;
 
-	if (!PC->IsLocalController())
-	{
-		return;
-	}
-
-	if (!PlayerInputComponent)
-	{
-		return;
-	}
+	if (!PC->IsLocalController()) return;
+	if (!PlayerInputComponent) return;
 
 	UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
 	if (!EnhancedInput)
 	{
-		// 프로젝트 전제상 EnhancedInput 사용 중이니 여기서 assert로 처리
 		ensureMsgf(
 			false, TEXT("UBFPusherInputComponent::BindInput - PlayerInputComponent is not EnhancedInputComponent"));
 		return;
@@ -113,17 +87,17 @@ void UBFPusherInputComponent::BindInput(UInputComponent* PlayerInputComponent)
 	if (MoveAction)
 	{
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this,
-		                          &UBFPusherInputComponent::OnMoveInputTriggered);
+		                          &UBFPusherInputComponent::OnMoveTriggered);
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this,
-								  &UBFPusherInputComponent::OnMoveInputEnded);
+								  &UBFPusherInputComponent::OnMoveEnded);
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Canceled, this,
-								  &UBFPusherInputComponent::OnMoveInputEnded);
+								  &UBFPusherInputComponent::OnMoveEnded);
 	}
 
 	if (LookAction)
 	{
 		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this,
-		                          &UBFPusherInputComponent::HandleLookInput);
+		                          &UBFPusherInputComponent::OnLookTriggered);
 	}
 
 	if (JumpAction)
@@ -178,13 +152,10 @@ void UBFPusherInputComponent::SetInputSink(const TScriptInterface<IBFInputSink>&
 	InputSink = InInputSink;
 }
 
-void UBFPusherInputComponent::OnMoveInputTriggered(const FInputActionValue& Value)
+void UBFPusherInputComponent::OnMoveTriggered(const FInputActionValue& Value)
 {
 	ABFPusher* Pusher = GetOwnerPusher();
-	if (!Pusher)
-	{
-		return;
-	}
+	if (!Pusher) return;
 	
 	// 운전 중이면 캐릭터 이동 입력 무시
 	if (Pusher->IsDriving())
@@ -211,7 +182,7 @@ void UBFPusherInputComponent::OnMoveInputTriggered(const FInputActionValue& Valu
 	}
 }
 
-void UBFPusherInputComponent::OnMoveInputEnded()
+void UBFPusherInputComponent::OnMoveEnded(const FInputActionValue& Value)
 {
 	if (InputSink)
 	{
@@ -219,7 +190,7 @@ void UBFPusherInputComponent::OnMoveInputEnded()
 	}
 }
 
-void UBFPusherInputComponent::HandleLookInput(const FInputActionValue& Value)
+void UBFPusherInputComponent::OnLookTriggered(const FInputActionValue& Value)
 {
 	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher || !Pusher->IsLocallyControlled())
@@ -261,8 +232,6 @@ void UBFPusherInputComponent::OnJumpPressed(const FInputActionValue& /*Value*/)
 {
 	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher) return;
-
-	// Pusher->Jump();
 	
 	if (InputSink)
 	{
@@ -274,8 +243,6 @@ void UBFPusherInputComponent::OnJumpReleased(const FInputActionValue& /*Value*/)
 {
 	ABFPusher* Pusher = GetOwnerPusher();
 	if (!Pusher) return;
-
-	// Pusher->StopJumping();
 	
 	if (InputSink)
 	{
@@ -316,7 +283,10 @@ void UBFPusherInputComponent::OnAccelTriggered(const FInputActionValue& Value)
 void UBFPusherInputComponent::OnAccelEnded(const FInputActionValue& Value)
 {
 	ABFPusher* Pusher = GetOwnerPusher();
-	if (!Pusher || !Pusher->IsDriving()) return;
+	if (!Pusher || !Pusher->IsDriving())
+	{
+		return;
+	}
 
 	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
 	{
@@ -327,7 +297,10 @@ void UBFPusherInputComponent::OnAccelEnded(const FInputActionValue& Value)
 void UBFPusherInputComponent::OnSteerTriggered(const FInputActionValue& Value)
 {
 	ABFPusher* Pusher = GetOwnerPusher();
-	if (!Pusher || !Pusher->IsDriving()) return;
+	if (!Pusher || !Pusher->IsDriving())
+	{
+		return;
+	}
 
 	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
 	{
@@ -338,7 +311,10 @@ void UBFPusherInputComponent::OnSteerTriggered(const FInputActionValue& Value)
 void UBFPusherInputComponent::OnSteerEnded(const FInputActionValue& Value)
 {
 	ABFPusher* Pusher = GetOwnerPusher();
-	if (!Pusher || !Pusher->IsDriving()) return;
+	if (!Pusher || !Pusher->IsDriving())
+	{
+		return;
+	}
 
 	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
 	{
@@ -349,7 +325,10 @@ void UBFPusherInputComponent::OnSteerEnded(const FInputActionValue& Value)
 void UBFPusherInputComponent::OnDriftStarted(const FInputActionValue& Value)
 {
 	ABFPusher* Pusher = GetOwnerPusher();
-	if (!Pusher || !Pusher->IsDriving()) return;
+	if (!Pusher || !Pusher->IsDriving())
+	{
+		return;
+	}
 
 	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
 	{
@@ -360,7 +339,10 @@ void UBFPusherInputComponent::OnDriftStarted(const FInputActionValue& Value)
 void UBFPusherInputComponent::OnDriftEnded(const FInputActionValue& Value)
 {
 	ABFPusher* Pusher = GetOwnerPusher();
-	if (!Pusher || !Pusher->IsDriving()) return;
+	if (!Pusher || !Pusher->IsDriving())
+	{
+		return;
+	}
 
 	if (UBFCartMovementComponent* CartMovementComp = ResolveCartMoveComp(Pusher))
 	{
@@ -368,19 +350,12 @@ void UBFPusherInputComponent::OnDriftEnded(const FInputActionValue& Value)
 	}
 }
 
-void UBFPusherInputComponent::OnRecoverCart()
+void UBFPusherInputComponent::OnRecoverCart(const FInputActionValue& Value)
 {
-	if (!OwnerPusher)
-	{
-		return;
-	}
+	if (!OwnerPusher) return;
 	
 	ABFCartPawn* Cart = OwnerPusher->GetCart();
-	
-	if (!Cart)
-	{
-		return;
-	}
+	if (!Cart) return;
 	
 	if (OwnerPusher->IsDriving())
 	{
